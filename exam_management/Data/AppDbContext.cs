@@ -17,6 +17,11 @@ namespace ExamManagement.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Unique Username
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
             // Many-to-Many: User <-> Subject
             modelBuilder.Entity<UserSubject>()
                 .HasKey(us => new { us.UserId, us.SubjectId });
