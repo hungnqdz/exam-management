@@ -113,6 +113,13 @@ namespace ExamManagement.Controllers.View
             {
                 return BadRequest("Cannot delete yourself.");
             }
+
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user?.Role == UserRole.Admin)
+            {
+                return BadRequest("Cannot delete Admin users.");
+            }
+
             await _userService.DeleteUserAsync(id);
             return RedirectToAction("Index");
         }
