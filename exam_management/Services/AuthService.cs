@@ -1,0 +1,93 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using ExamManagement.Data;
+using ExamManagement.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using BCrypt.Net;
+
+namespace ExamManagement.Services
+{
+    public class AuthService : IAuthService
+    {
+        private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
+
+        public AuthService(AppDbContext context, IConfiguration configuration)
+        {
+            _context = context;
+            _configuration = configuration;
+        }
+
+        public string HashPassword(string password)
+        {
+            return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
+        public bool VerifyPassword(string password, string hash)
+        {
+            return BCrypt.Net.BCrypt.Verify(password, hash);
+        }
+
+        public string GenerateJwtToken(User user)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"]!);
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Name, user.Username),
+                    new Claim(ClaimTypes.Role, user.Role.ToString()),
+                    new Claim("FullName", user.FullName)
+                }),
+                Expires = DateTime.UtcNow.AddDays(7),
+                Issuer = _configuration["Jwt:Issuer"],
+                Audience = _configuration["Jwt:Audience"],
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
+
+        public async Task<User?> AuthenticateAsync(string username, string password)
+        {
+            var user = await _context.Users.Include(u => u.UserSubjects).FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null || !VerifyPassword(password, user.PasswordHash))
+            {
+                return null;
+            }
+            return user;
+        }
+
+        public async Task<User> RegisterStudentAsync(string username, string password, string fullname, Gender gender, List<int> subjectIds)
+        {
+            if (await _context.Users.AnyAsync(u => u.Username == username))
+            {
+                throw new Exception("Username already exists");
+            }
+
+            var user = new User
+            {
+                Username = username,
+                PasswordHash = HashPassword(password),
+                FullName = fullname,
+                Gender = gender,
+                Role = UserRole.Student
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            foreach (var subjectId in subjectIds)
+            {
+                _context.UserSubjects.Add(new UserSubject { UserId = user.Id, SubjectId = subjectId });
+            }
+            await _context.SaveChangesAsync();
+
+            return user;
+        }
+    }
+}

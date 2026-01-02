@@ -1,0 +1,19 @@
+@model ExamManagement.Models.Exam
+
+<h2>Create Exam</h2>
+<form asp-action="CreateExam" method="post" class="w-50">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3">
+        <label>Title</label>
+        <input asp-for="Title" class="form-control" required />
+    </div>
+    <div class="mb-3">
+        <label>Content (Question)</label>
+        <textarea asp-for="Content" class="form-control" rows="5" required></textarea>
+    </div>
+    
+    <!-- Subject is now inferred from Teacher's assigned subject -->
+    
+    <button type="submit" class="btn btn-success">Create</button>
+    <a asp-action="Exams" class="btn btn-secondary">Back</a>
+</form>

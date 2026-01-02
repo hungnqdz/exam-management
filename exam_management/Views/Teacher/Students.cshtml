@@ -1,0 +1,168 @@
+@model List<ExamManagement.Models.User>
+
+<h2>Student Management (My Classes)</h2>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <form method="get" class="d-flex">
+            <input type="text" name="search" class="form-control me-2" placeholder="Search students..." value="@ViewBag.Search">
+            <button type="submit" class="btn btn-outline-primary">Search</button>
+        </form>
+    </div>
+    <div class="col-md-6 text-end">
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createStudentModal">
+            Add Student
+        </button>
+    </div>
+</div>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Gender</th>
+            <th>Classes</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var s in Model)
+        {
+            <tr data-id="@s.Id" 
+                data-username="@s.Username" 
+                data-fullname="@s.FullName" 
+                data-phone="@s.PhoneNumber" 
+                data-address="@s.Address">
+                <td>@s.Id</td>
+                <td>@s.Username</td>
+                <td>@s.FullName</td>
+                <td>@s.PhoneNumber</td>
+                <td>@s.Gender</td>
+                <td>
+                    @foreach(var sub in s.UserSubjects) {
+                        <span class="badge bg-info text-dark">@sub.Subject.Name</span>
+                    }
+                </td>
+                <td>
+                    <button class="btn btn-warning btn-sm" onclick="openEditModal(this)">Edit</button>
+                    <form asp-action="DeleteStudent" asp-route-id="@s.Id" method="post" class="d-inline" onsubmit="return confirm('Remove this student?');">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- Create Student Modal -->
+<div class="modal fade" id="createStudentModal" tabindex="-1" aria-labelledby="createStudentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="CreateStudent" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createStudentModalLabel">Add Student</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div asp-validation-summary="All" class="text-danger"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input name="Username" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input name="Password" type="password" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input name="FullName" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Select Classes (Your Subjects)</label>
+                        <div class="d-flex flex-wrap">
+                            @if(ViewBag.Subjects != null) {
+                                foreach (var sub in ViewBag.Subjects as List<ExamManagement.Models.Subject>)
+                                {
+                                    <div class="form-check me-3">
+                                        <input class="form-check-input" type="checkbox" name="SubjectIds" value="@sub.Id" id="sub_@sub.Id">
+                                        <label class="form-check-label" for="sub_@sub.Id">@sub.Name</label>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Student Modal -->
+<div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editStudentForm" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editStudentModalLabel">Edit Student</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="Id" id="edit_Id" />
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input name="Username" id="edit_Username" class="form-control" disabled />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input name="FullName" id="edit_FullName" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input name="PhoneNumber" id="edit_PhoneNumber" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <input name="Address" id="edit_Address" class="form-control" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEditModal(button) {
+        var row = button.closest('tr');
+        var id = row.getAttribute('data-id');
+        var username = row.getAttribute('data-username');
+        var fullname = row.getAttribute('data-fullname');
+        var phone = row.getAttribute('data-phone');
+        var address = row.getAttribute('data-address');
+
+        document.getElementById('edit_Id').value = id;
+        document.getElementById('edit_Username').value = username;
+        document.getElementById('edit_FullName').value = fullname;
+        document.getElementById('edit_PhoneNumber').value = phone;
+        document.getElementById('edit_Address').value = address;
+
+        // Set form action dynamically
+        var form = document.getElementById('editStudentForm');
+        form.action = '/Teacher/Students/Edit/' + id;
+
+        // Open Modal
+        var myModal = new bootstrap.Modal(document.getElementById('editStudentModal'));
+        myModal.show();
+    }
+</script>

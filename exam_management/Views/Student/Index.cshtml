@@ -1,0 +1,19 @@
+@model List<ExamManagement.Models.Exam>
+
+<h2>My Exams</h2>
+<table class="table table-bordered">
+    <thead>
+        <tr><th>ID</th><th>Subject</th><th>Title</th><th>Action</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var e in Model)
+        {
+            <tr>
+                <td>@e.Id</td>
+                <td>@e.Subject?.Name</td>
+                <td>@e.Title</td>
+                <td><a asp-action="ExamDetail" asp-route-id="@e.Id" class="btn btn-primary btn-sm">View & Submit</a></td>
+            </tr>
+        }
+    </tbody>
+</table>

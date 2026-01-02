@@ -1,0 +1,61 @@
+@model ExamManagement.Models.Exam
+@{
+    var submission = ViewBag.Submission as ExamManagement.Models.Submission;
+}
+
+<h2>Exam: @Model.Title</h2>
+<p class="lead">Subject: @Model.Subject?.Name</p>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success">@TempData["Message"]</div>
+}
+
+<div class="card mb-4">
+    <div class="card-header">Question Content</div>
+    <div class="card-body">
+        <p>@Model.Content</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Submission & Result</div>
+    <div class="card-body">
+        @if (submission != null)
+        {
+            <div class="alert alert-info">
+                <strong>Status:</strong> Submitted on @submission.SubmittedAt <br/>
+                <strong>My File:</strong> <a href="@submission.FilePath" target="_blank">View PDF</a>
+            </div>
+
+            @if (submission.Score.HasValue)
+            {
+                <div class="alert alert-success">
+                    <h3>Result: @submission.Score / 10</h3>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning">Not graded yet.</div>
+            }
+        }
+        else 
+        {
+            <h4>Submit Your Exam</h4>
+            <p class="text-muted">Note: You can only submit once. Resubmission is not allowed.</p>
+            <form asp-action="SubmitExam" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="examId" value="@Model.Id" />
+                <div class="mb-3">
+                    <label>Upload PDF</label>
+                    <input type="file" name="pdfFile" class="form-control" accept="application/pdf" required />
+                </div>
+                <button type="submit" class="btn btn-primary">Upload & Submit</button>
+            </form>
+        }
+    </div>
+</div>
+<a asp-action="Index" class="btn btn-secondary mt-3">Back</a>

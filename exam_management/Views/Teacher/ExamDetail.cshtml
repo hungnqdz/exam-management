@@ -1,0 +1,61 @@
+@model ExamManagement.Models.Exam
+@{
+    var submissions = ViewBag.Submissions as List<ExamManagement.Models.Submission>;
+}
+
+<h2>Exam Detail: @Model.Title</h2>
+<p><strong>Subject:</strong> @Model.Subject?.Name</p>
+<p><strong>Content:</strong> @Model.Content</p>
+
+<h3>Submissions</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Student</th>
+            <th>Submitted At</th>
+            <th>File</th>
+            <th>Score</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var sub in submissions)
+        {
+            <tr>
+                <td>@sub.Student.FullName</td>
+                <td>@sub.SubmittedAt</td>
+                <td><a href="@sub.FilePath" target="_blank" class="btn btn-sm btn-outline-info">View PDF</a></td>
+                <td>@(sub.Score.HasValue ? sub.Score.Value.ToString() : "Not Graded")</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#gradeModal-@sub.Id">
+                        Grade
+                    </button>
+
+                    <!-- Modal -->
+                    <div class="modal fade" id="gradeModal-@sub.Id" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form asp-action="Grade" method="post">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Grade Student: @sub.Student.FullName</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <input type="hidden" name="submissionId" value="@sub.Id" />
+                                        <input type="hidden" name="examId" value="@Model.Id" />
+                                        <label>Score (1-10)</label>
+                                        <input type="number" name="score" min="1" max="10" step="0.5" class="form-control" required />
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-primary">Save Grade</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+<a asp-action="Exams" class="btn btn-secondary">Back to List</a>
