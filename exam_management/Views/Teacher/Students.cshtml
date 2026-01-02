@@ -85,10 +85,12 @@
                         <label class="form-label">Select Classes (Your Subjects)</label>
                         <div class="d-flex flex-wrap">
                             @if(ViewBag.Subjects != null) {
-                                foreach (var sub in ViewBag.Subjects as List<ExamManagement.Models.Subject>)
+                                var subjects = ViewBag.Subjects as List<ExamManagement.Models.Subject>;
+                                var isSingleSubject = subjects != null && subjects.Count == 1;
+                                foreach (var sub in subjects)
                                 {
                                     <div class="form-check me-3">
-                                        <input class="form-check-input" type="checkbox" name="SubjectIds" value="@sub.Id" id="sub_@sub.Id">
+                                        <input class="form-check-input" type="checkbox" name="SubjectIds" value="@sub.Id" id="sub_@sub.Id" @(isSingleSubject ? "checked" : "")>
                                         <label class="form-check-label" for="sub_@sub.Id">@sub.Name</label>
                                     </div>
                                 }

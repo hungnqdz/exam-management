@@ -43,6 +43,12 @@ namespace ExamManagement.Controllers.View
                 ModelState.AddModelError("Role", "Creating Admin users is not allowed.");
             }
 
+            // Check for duplicate username
+            if (await _userService.GetUserByUsernameAsync(model.Username) != null)
+            {
+                ModelState.AddModelError("Username", "Username already exists.");
+            }
+
             if (ModelState.IsValid)
             {
                 var user = new User { Username = model.Username, FullName = model.FullName, Role = model.Role };
@@ -53,6 +59,11 @@ namespace ExamManagement.Controllers.View
                     ModelState.AddModelError("", ex.Message);
                 }
             }
+            
+            // Remove potential Search validation errors
+            ModelState.Remove("Search");
+            ModelState.Remove("search");
+
             ViewBag.Subjects = await _userService.GetAllSubjectsAsync();
             // Reload data for Index view
             var users = await _userService.GetAllUsersAsync();
@@ -72,6 +83,13 @@ namespace ExamManagement.Controllers.View
                 // Better UX: keep the old role silently or show error.
                 // Here we simply enforce the old role.
                 model.Role = user.Role; 
+            }
+
+            // Requirement: Cannot promote others to Admin
+            if (model.Role == UserRole.Admin && user.Role != UserRole.Admin)
+            {
+                ModelState.AddModelError("Role", "Cannot promote users to Admin role.");
+                return View("Detail", user);
             }
 
             user.FullName = model.FullName;
@@ -112,10 +130,22 @@ namespace ExamManagement.Controllers.View
             var users = await _userService.GetAllUsersAsync();
             var sb = new StringBuilder();
             sb.AppendLine("Id,Username,FullName,Role,Gender,Classes");
+            
+            // Local function to prevent CSV Injection
+            string Sanitize(string input)
+            {
+                if (string.IsNullOrEmpty(input)) return "";
+                if (input.StartsWith("=") || input.StartsWith("+") || input.StartsWith("-") || input.StartsWith("@"))
+                {
+                    return "'" + input;
+                }
+                return input;
+            }
+
             foreach (var u in users) 
             {
                 var classes = string.Join(";", u.UserSubjects.Select(us => us.Subject.Name));
-                sb.AppendLine($"{u.Id},{u.Username},{u.FullName},{u.Role},{u.Gender},{classes}");
+                sb.AppendLine($"{u.Id},{Sanitize(u.Username)},{Sanitize(u.FullName)},{u.Role},{u.Gender},{classes}");
             }
 
             var fileName = $"users_{DateTime.UtcNow.Ticks}.csv";

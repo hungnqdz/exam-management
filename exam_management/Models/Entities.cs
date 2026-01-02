@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace ExamManagement.Models
 {
@@ -17,6 +18,7 @@ namespace ExamManagement.Models
         Other = 2
     }
 
+    [Index(nameof(Username), IsUnique = true)]
     public class User
     {
         [Key]

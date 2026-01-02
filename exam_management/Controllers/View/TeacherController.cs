@@ -46,6 +46,22 @@ namespace ExamManagement.Controllers.View
         [HttpPost("Students/Create")]
         public async Task<IActionResult> CreateStudent(CreateUserVm model)
         {
+            var teacherId = GetUserId();
+            var teacher = await _userService.GetUserByIdAsync(teacherId);
+
+            // Check duplicate username
+            if (await _userService.GetUserByUsernameAsync(model.Username) != null)
+            {
+                ModelState.AddModelError("Username", "Username already exists.");
+            }
+
+            // Validate Subjects: Teacher can only assign students to their own subjects
+            var teacherSubjectIds = teacher?.UserSubjects.Select(us => us.SubjectId).ToList() ?? new List<int>();
+            if (model.SubjectIds != null && model.SubjectIds.Any(sid => !teacherSubjectIds.Contains(sid)))
+            {
+                ModelState.AddModelError("SubjectIds", "You can only assign students to classes you teach.");
+            }
+
             if (ModelState.IsValid)
             {
                 var user = new User 
@@ -75,9 +91,11 @@ namespace ExamManagement.Controllers.View
                 }
             }
             
+            // Remove Search validation errors
+            ModelState.Remove("Search");
+            ModelState.Remove("search");
+
             // Reload subjects on error
-            var teacherId = GetUserId();
-            var teacher = await _userService.GetUserByIdAsync(teacherId);
             ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
             
             var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());

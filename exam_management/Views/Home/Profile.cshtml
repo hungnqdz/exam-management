@@ -5,7 +5,7 @@
         <div class="col-md-4 text-center">
             <h3>Avatar</h3>
             <div class="mb-3 position-relative d-inline-block">
-                <img src="@(Model.AvatarUrl ?? "https://via.placeholder.com/150")" class="rounded-circle img-thumbnail" style="width: 150px; height: 150px; cursor: pointer;" onclick="document.getElementById('avatarInput').click();" />
+                <img src="@(Model.AvatarUrl ?? "/SecureFile/Avatar/avatar.jpg")" class="rounded-circle img-thumbnail" style="width: 150px; height: 150px; cursor: pointer;" onclick="document.getElementById('avatarInput').click();" />
                 <div class="position-absolute bottom-0 end-0 bg-primary text-white p-1 rounded-circle" style="cursor:pointer;" onclick="document.getElementById('avatarInput').click();">
                     <i class="fas fa-camera"></i>
                 </div>
@@ -17,6 +17,10 @@
         </div>
         <div class="col-md-8">
             <h3>Profile Info</h3>
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Error"]</div>
+            }
             @if (TempData["Message"] != null)
             {
                 <div class="alert alert-success">@TempData["Message"]</div>

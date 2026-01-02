@@ -3,6 +3,7 @@ using ExamManagement.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Linq;
 
 namespace ExamManagement.Controllers.View
 {
@@ -55,7 +56,15 @@ namespace ExamManagement.Controllers.View
         {
             if (avatarFile != null && avatarFile.Length > 0)
             {
-                var ext = Path.GetExtension(avatarFile.FileName);
+                var allowedExtensions = new[] { ".png", ".jpg" };
+                var ext = Path.GetExtension(avatarFile.FileName).ToLower();
+
+                if (!allowedExtensions.Contains(ext))
+                {
+                    TempData["Error"] = "Only .png and .jpg files are allowed.";
+                    return RedirectToAction("Profile");
+                }
+
                 var fileName = $"{GetUserId()}_{Guid.NewGuid()}{ext}";
                 
                 // Save to Storage/Avatars (Secure)

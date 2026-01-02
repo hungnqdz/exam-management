@@ -76,6 +76,13 @@ namespace ExamManagement.Services
                 .ToListAsync();
         }
 
+        public async Task<User?> GetUserByUsernameAsync(string username)
+        {
+            return await _context.Users
+                .Include(u => u.UserSubjects).ThenInclude(us => us.Subject)
+                .FirstOrDefaultAsync(u => u.Username == username);
+        }
+
         public async Task<List<User>> GetStudentsByTeacherClassAsync(int teacherId)
         {
             // 1. Get Teacher's subjects
