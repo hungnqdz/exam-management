@@ -6,7 +6,7 @@
 <div class="row mb-3">
     <div class="col-md-6">
         <form method="get" class="d-flex">
-            <input type="text" name="search" class="form-control me-2" placeholder="Tìm kiếm người dùng..." value="@ViewBag.Search">
+            <input type="text" name="search" class="form-control me-2" placeholder="Tìm kiếm người dùng..." value="@ViewBag.Search" data-val="false">
             <button type="submit" class="btn btn-outline-primary">Tìm kiếm</button>
         </form>
     </div>
@@ -49,9 +49,12 @@
                 <td>
                     <a asp-action="Detail" asp-route-id="@user.Id" class="btn btn-info btn-sm">Chi tiết</a>
                     
-                    <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn?');">
-                        <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
-                    </form>
+                    @if (user.Role != UserRole.Admin)
+                    {
+                        <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn?');">
+                            <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
+                        </form>
+                    }
                 </td>
             </tr>
         }

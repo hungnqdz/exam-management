@@ -76,6 +76,11 @@ namespace ExamManagement.Services
                 .ToListAsync();
         }
 
+        public async Task<bool> IsUsernameTakenAsync(string username)
+        {
+            return await _context.Users.AnyAsync(u => u.Username == username);
+        }
+
         public async Task<List<User>> GetStudentsByTeacherClassAsync(int teacherId)
         {
             // 1. Get Teacher's subjects

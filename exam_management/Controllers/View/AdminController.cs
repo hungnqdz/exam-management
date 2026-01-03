@@ -84,6 +84,11 @@ namespace ExamManagement.Controllers.View
                 ModelState.AddModelError("Role", "Creating Admin users is not allowed.");
             }
 
+            if (model != null && await _userService.IsUsernameTakenAsync(model.Username))
+            {
+                ModelState.AddModelError("Username", "Username is already taken.");
+            }
+
             // Security: Validate required fields
             if (model == null || string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.FullName) || string.IsNullOrWhiteSpace(model.Password))
             {
@@ -123,6 +128,13 @@ namespace ExamManagement.Controllers.View
                 // Better UX: keep the old role silently or show error.
                 // Here we simply enforce the old role.
                 model.Role = user.Role; 
+            }
+
+            // Requirement: Cannot set another user's role to Admin
+            if (id != GetUserId() && model.Role == UserRole.Admin && user.Role != UserRole.Admin)
+            {
+                ModelState.AddModelError("Role", "Cannot assign Admin role to other users.");
+                model.Role = user.Role; // Revert
             }
 
             // Security: Input validation and sanitization

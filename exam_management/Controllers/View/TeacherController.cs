@@ -75,6 +75,21 @@ namespace ExamManagement.Controllers.View
                 ModelState.AddModelError("", "Username must be 50 characters or less.");
             }
             
+            if (await _userService.IsUsernameTakenAsync(model.Username))
+            {
+                ModelState.AddModelError("Username", "Username is already taken.");
+            }
+
+            // Requirement: Validate teacher can only assign to their subjects
+            var teacherId = GetUserId();
+            var teacher = await _userService.GetUserByIdAsync(teacherId);
+            var teacherSubjectIds = teacher?.UserSubjects.Select(us => us.SubjectId).ToList() ?? new List<int>();
+
+            if (model != null && model.SubjectIds != null && model.SubjectIds.Any(sid => !teacherSubjectIds.Contains(sid)))
+            {
+                ModelState.AddModelError("SubjectIds", "You can only assign students to your own classes.");
+            }
+            
             if (ModelState.IsValid)
             {
                 var user = new User 
@@ -105,8 +120,6 @@ namespace ExamManagement.Controllers.View
             }
             
             // Reload subjects on error
-            var teacherId = GetUserId();
-            var teacher = await _userService.GetUserByIdAsync(teacherId);
             ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
             
             var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());
