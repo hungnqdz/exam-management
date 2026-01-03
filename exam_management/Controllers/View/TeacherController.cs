@@ -29,9 +29,16 @@ namespace ExamManagement.Controllers.View
             var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());
             if (!string.IsNullOrEmpty(search))
             {
+                // Security: Sanitize search input to prevent injection
+                search = search.Trim();
+                // Limit search length to prevent DoS
+                if (search.Length > 100)
+                {
+                    search = search.Substring(0, 100);
+                }
                 // Case-insensitive search
-                search = search.ToLower();
-                myStudents = myStudents.Where(s => s.Username.ToLower().Contains(search) || s.FullName.ToLower().Contains(search)).ToList();
+                var searchLower = search.ToLower();
+                myStudents = myStudents.Where(s => s.Username.ToLower().Contains(searchLower) || s.FullName.ToLower().Contains(searchLower)).ToList();
             }
             ViewBag.Search = search;
             
@@ -46,6 +53,43 @@ namespace ExamManagement.Controllers.View
         [HttpPost("Students/Create")]
         public async Task<IActionResult> CreateStudent(CreateUserVm model)
         {
+            // Security: Input validation and sanitization
+            if (model != null)
+            {
+                model.Username = (model.Username ?? string.Empty).Trim();
+                model.FullName = (model.FullName ?? string.Empty).Trim();
+                model.Password = model.Password ?? string.Empty;
+            }
+            
+            // Security: Validate required fields
+            if (model == null || string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.FullName) || string.IsNullOrWhiteSpace(model.Password))
+            {
+                ModelState.AddModelError("", "Username, Full Name, and Password are required.");
+            }
+            else if (model.Password.Length < 6)
+            {
+                ModelState.AddModelError("", "Password must be at least 6 characters long.");
+            }
+            else if (model.Username.Length > 50)
+            {
+                ModelState.AddModelError("", "Username must be 50 characters or less.");
+            }
+            
+            if (await _userService.IsUsernameTakenAsync(model.Username))
+            {
+                ModelState.AddModelError("Username", "Username is already taken.");
+            }
+
+            // Requirement: Validate teacher can only assign to their subjects
+            var teacherId = GetUserId();
+            var teacher = await _userService.GetUserByIdAsync(teacherId);
+            var teacherSubjectIds = teacher?.UserSubjects.Select(us => us.SubjectId).ToList() ?? new List<int>();
+
+            if (model != null && model.SubjectIds != null && model.SubjectIds.Any(sid => !teacherSubjectIds.Contains(sid)))
+            {
+                ModelState.AddModelError("SubjectIds", "You can only assign students to your own classes.");
+            }
+            
             if (ModelState.IsValid)
             {
                 var user = new User 
@@ -76,8 +120,6 @@ namespace ExamManagement.Controllers.View
             }
             
             // Reload subjects on error
-            var teacherId = GetUserId();
-            var teacher = await _userService.GetUserByIdAsync(teacherId);
             ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
             
             var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());
@@ -87,24 +129,39 @@ namespace ExamManagement.Controllers.View
         [HttpPost("Students/Edit/{id}")]
         public async Task<IActionResult> EditStudent(int id, User model)
         {
+             // Security: Verify the student belongs to teacher's classes
+             var teacherId = GetUserId();
+             var myStudents = await _userService.GetStudentsByTeacherClassAsync(teacherId);
+             
+             // Check if the student is in teacher's classes
+             if (!myStudents.Any(s => s.Id == id))
+             {
+                 return Forbid("You can only edit students in your classes.");
+             }
+             
              // Basic edit for teacher: Name, Phone, Address
-             // Should also verify ownership again
              var user = await _userService.GetUserByIdAsync(id);
              if (user == null || user.Role != UserRole.Student) return NotFound();
 
-             user.FullName = model.FullName;
-             user.PhoneNumber = model.PhoneNumber;
-             user.Address = model.Address;
+             // Security: Input validation and sanitization
+             user.FullName = (model.FullName ?? string.Empty).Trim();
+             user.PhoneNumber = (model.PhoneNumber ?? string.Empty).Trim();
+             user.Address = (model.Address ?? string.Empty).Trim();
+             
+             // Validate FullName is not empty
+             if (string.IsNullOrWhiteSpace(user.FullName))
+             {
+                 ModelState.AddModelError("", "Full name is required.");
+                 var teacher = await _userService.GetUserByIdAsync(teacherId);
+                 ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
+                 return View("Students", myStudents);
+             }
              
              try {
                  await _userService.UpdateUserAsync(user);
                  return RedirectToAction("Students");
              } catch (Exception ex) {
                  ModelState.AddModelError("", ex.Message);
-                 var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());
-                 // We might need to reload subjects if the view uses them, but EditStudent doesn't use subjects in the modal logic (it uses data attributes).
-                 // However, the Create modal on the same page DOES need subjects.
-                 var teacherId = GetUserId();
                  var teacher = await _userService.GetUserByIdAsync(teacherId);
                  ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
                  
@@ -115,6 +172,16 @@ namespace ExamManagement.Controllers.View
         [HttpPost("Students/Delete/{id}")]
         public async Task<IActionResult> DeleteStudent(int id)
         {
+             // Security: Verify the student belongs to teacher's classes
+             var teacherId = GetUserId();
+             var myStudents = await _userService.GetStudentsByTeacherClassAsync(teacherId);
+             
+             // Check if the student is in teacher's classes
+             if (!myStudents.Any(s => s.Id == id))
+             {
+                 return Forbid("You can only delete students in your classes.");
+             }
+             
              var user = await _userService.GetUserByIdAsync(id);
              if (user != null && user.Role == UserRole.Student)
              {
@@ -189,6 +256,17 @@ namespace ExamManagement.Controllers.View
             var exam = await _examService.GetExamByIdAsync(id);
             if (exam == null) return NotFound();
             
+            // Security: Verify teacher has permission to view this exam
+            var teacherId = GetUserId();
+            var teacher = await _userService.GetUserByIdAsync(teacherId);
+            if (teacher == null) return NotFound();
+            
+            var teacherTeachesSubject = teacher.UserSubjects.Any(us => us.SubjectId == exam.SubjectId);
+            if (!teacherTeachesSubject)
+            {
+                return Forbid("You can only view exams for subjects you teach.");
+            }
+            
             var submissions = await _examService.GetSubmissionsForExamAsync(id);
             ViewBag.Submissions = submissions;
             return View(exam);
@@ -197,7 +275,29 @@ namespace ExamManagement.Controllers.View
         [HttpPost("Exams/Grade")]
         public async Task<IActionResult> Grade(int submissionId, double score, int examId)
         {
-            await _examService.GradeSubmissionAsync(submissionId, score, GetUserId());
+            // Security: Verify teacher has permission to grade this exam
+            var teacherId = GetUserId();
+            var exam = await _examService.GetExamByIdAsync(examId);
+            if (exam == null) return NotFound();
+            
+            // Verify teacher teaches the subject of this exam
+            var teacher = await _userService.GetUserByIdAsync(teacherId);
+            if (teacher == null) return NotFound();
+            
+            var teacherTeachesSubject = teacher.UserSubjects.Any(us => us.SubjectId == exam.SubjectId);
+            if (!teacherTeachesSubject)
+            {
+                return Forbid("You can only grade exams for subjects you teach.");
+            }
+            
+            // Security: Validate score range
+            if (score < 0 || score > 10)
+            {
+                TempData["Error"] = "Score must be between 0 and 10.";
+                return RedirectToAction("ExamDetail", new { id = examId });
+            }
+            
+            await _examService.GradeSubmissionAsync(submissionId, score, teacherId);
             return RedirectToAction("ExamDetail", new { id = examId });
         }
     }

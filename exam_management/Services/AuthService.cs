@@ -33,7 +33,19 @@ namespace ExamManagement.Services
         public string GenerateJwtToken(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"]!);
+            // Security: Use environment variable first, then configuration
+            var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
+                ?? _configuration["Jwt:Key"]
+                ?? throw new InvalidOperationException("JWT Key missing.");
+            var key = Encoding.ASCII.GetBytes(jwtKey);
+            
+            var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") 
+                ?? _configuration["Jwt:Issuer"] 
+                ?? "ExamManagement";
+            var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") 
+                ?? _configuration["Jwt:Audience"] 
+                ?? "ExamManagementUsers";
+            
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new[]
@@ -44,8 +56,8 @@ namespace ExamManagement.Services
                     new Claim("FullName", user.FullName)
                 }),
                 Expires = DateTime.UtcNow.AddDays(7),
-                Issuer = _configuration["Jwt:Issuer"],
-                Audience = _configuration["Jwt:Audience"],
+                Issuer = jwtIssuer,
+                Audience = jwtAudience,
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
             var token = tokenHandler.CreateToken(tokenDescriptor);

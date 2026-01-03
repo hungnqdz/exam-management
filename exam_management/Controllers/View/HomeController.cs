@@ -38,12 +38,28 @@ namespace ExamManagement.Controllers.View
         [HttpPost]
         public async Task<IActionResult> UpdateProfile(ExamManagement.Models.User model)
         {
-            // Binding directly to Entity for simplicity in SSR
+            // Security: Input validation and sanitization
+            if (model == null)
+            {
+                TempData["Error"] = "Invalid data.";
+                return RedirectToAction("Profile");
+            }
+            
             var user = await _userService.GetUserByIdAsync(GetUserId());
-            user.FullName = model.FullName;
-            user.PhoneNumber = model.PhoneNumber;
-            user.Address = model.Address;
+            if (user == null) return NotFound();
+            
+            // Security: Sanitize inputs
+            user.FullName = (model.FullName ?? string.Empty).Trim();
+            user.PhoneNumber = (model.PhoneNumber ?? string.Empty).Trim();
+            user.Address = (model.Address ?? string.Empty).Trim();
             user.Gender = model.Gender;
+            
+            // Security: Validate FullName is not empty
+            if (string.IsNullOrWhiteSpace(user.FullName))
+            {
+                TempData["Error"] = "Full name is required.";
+                return RedirectToAction("Profile");
+            }
             
             await _userService.UpdateUserAsync(user);
             TempData["Message"] = "Profile Updated";
@@ -53,29 +69,71 @@ namespace ExamManagement.Controllers.View
         [HttpPost]
         public async Task<IActionResult> UploadAvatar(IFormFile avatarFile)
         {
-            if (avatarFile != null && avatarFile.Length > 0)
+            if (avatarFile == null || avatarFile.Length == 0)
             {
-                var ext = Path.GetExtension(avatarFile.FileName);
-                var fileName = $"{GetUserId()}_{Guid.NewGuid()}{ext}";
-                
-                // Save to Storage/Avatars (Secure)
-                var storagePath = Path.Combine(_env.ContentRootPath, "Storage", "Avatars");
-                
-                if (!Directory.Exists(storagePath))
-                {
-                    Directory.CreateDirectory(storagePath);
-                }
-                
-                using (var stream = new FileStream(Path.Combine(storagePath, fileName), FileMode.Create))
-                {
-                    await avatarFile.CopyToAsync(stream);
-                }
-
-                var user = await _userService.GetUserByIdAsync(GetUserId());
-                // URL points to SecureFileController
-                user.AvatarUrl = $"/SecureFile/Avatar/{fileName}";
-                await _userService.UpdateUserAsync(user);
+                TempData["Error"] = "Please select a file to upload.";
+                return RedirectToAction("Profile");
             }
+
+            // Security: File size limit (5MB for avatars)
+            const long maxFileSize = 5 * 1024 * 1024; // 5MB
+            if (avatarFile.Length > maxFileSize)
+            {
+                TempData["Error"] = "File size exceeds the maximum limit of 5MB.";
+                return RedirectToAction("Profile");
+            }
+
+            // Security: Validate file extension - only allow image files
+            var extension = Path.GetExtension(avatarFile.FileName).ToLower();
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            if (!allowedExtensions.Contains(extension))
+            {
+                TempData["Error"] = "Only image files (JPG, PNG, GIF, WEBP) are allowed.";
+                return RedirectToAction("Profile");
+            }
+
+            // Security: Validate MIME type
+            var allowedMimeTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
+            if (!allowedMimeTypes.Contains(avatarFile.ContentType.ToLower()))
+            {
+                TempData["Error"] = "Invalid file type. Only image files are allowed.";
+                return RedirectToAction("Profile");
+            }
+
+            // Security: Sanitize filename
+            var sanitizedExt = extension;
+            var fileName = $"{GetUserId()}_{Guid.NewGuid()}{sanitizedExt}";
+            
+            // Save to Storage/Avatars (Secure)
+            var storagePath = Path.Combine(_env.ContentRootPath, "Storage", "Avatars");
+            
+            if (!Directory.Exists(storagePath))
+            {
+                Directory.CreateDirectory(storagePath);
+            }
+            
+            var filePath = Path.Combine(storagePath, fileName);
+            
+            // Additional security: Ensure path is within storage directory
+            var resolvedPath = Path.GetFullPath(filePath);
+            var resolvedStoragePath = Path.GetFullPath(storagePath);
+            if (!resolvedPath.StartsWith(resolvedStoragePath, StringComparison.Ordinal))
+            {
+                TempData["Error"] = "Invalid file path.";
+                return RedirectToAction("Profile");
+            }
+            
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await avatarFile.CopyToAsync(stream);
+            }
+
+            var user = await _userService.GetUserByIdAsync(GetUserId());
+            // URL points to SecureFileController
+            user.AvatarUrl = $"/SecureFile/Avatar/{fileName}";
+            await _userService.UpdateUserAsync(user);
+            TempData["Message"] = "Avatar uploaded successfully.";
+            
             return RedirectToAction("Profile");
         }
 
@@ -85,8 +143,23 @@ namespace ExamManagement.Controllers.View
         [HttpPost]
         public async Task<IActionResult> ChangePassword(ChangePasswordVm model)
         {
+            // Security: Input validation
+            if (model == null || string.IsNullOrWhiteSpace(model.OldPassword) || string.IsNullOrWhiteSpace(model.NewPassword))
+            {
+                ModelState.AddModelError("", "Old password and new password are required.");
+                return View(model);
+            }
+            
+            // Security: Password strength requirements
+            if (model.NewPassword.Length < 6)
+            {
+                ModelState.AddModelError("", "New password must be at least 6 characters long.");
+                return View(model);
+            }
+            
             var userId = GetUserId();
             var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null) return NotFound();
             
             if (!_authService.VerifyPassword(model.OldPassword, user.PasswordHash))
             {

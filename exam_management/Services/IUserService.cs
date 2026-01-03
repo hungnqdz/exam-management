@@ -11,6 +11,7 @@ namespace ExamManagement.Services
         Task DeleteUserAsync(int id);
         Task ChangePasswordAsync(int userId, string newPassword);
         Task<List<User>> SearchUsersAsync(string term);
+        Task<bool> IsUsernameTakenAsync(string username);
         
         // Teacher specific
         Task<List<User>> GetStudentsByTeacherClassAsync(int teacherId);

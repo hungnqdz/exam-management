@@ -1,22 +1,22 @@
 @model List<ExamManagement.Models.User>
 @using ExamManagement.Models
 
-<h2>User Management</h2>
+<h2>Quản lý người dùng</h2>
 
 <div class="row mb-3">
     <div class="col-md-6">
         <form method="get" class="d-flex">
-            <input type="text" name="search" class="form-control me-2" placeholder="Search users..." value="@ViewBag.Search">
-            <button type="submit" class="btn btn-outline-primary">Search</button>
+            <input type="text" name="search" class="form-control me-2" placeholder="Tìm kiếm người dùng..." value="@ViewBag.Search" data-val="false">
+            <button type="submit" class="btn btn-outline-primary">Tìm kiếm</button>
         </form>
     </div>
     <div class="col-md-6 text-end">
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createUserModal">
-            Create User
+            Tạo người dùng
         </button>
         <!-- Changed to POST for Action-based Export flow -->
         <form asp-action="Export" method="post" class="d-inline-block ms-2">
-            <button type="submit" class="btn btn-secondary">Export CSV</button>
+            <button type="submit" class="btn btn-secondary">Xuất CSV</button>
         </form>
     </div>
 </div>
@@ -25,11 +25,11 @@
     <thead>
         <tr>
             <th>ID</th>
-            <th>Username</th>
-            <th>Full Name</th>
-            <th>Role</th>
-            <th>Classes</th>
-            <th>Actions</th>
+            <th>Tên đăng nhập</th>
+            <th>Họ và tên</th>
+            <th>Vai trò</th>
+            <th>Lớp học</th>
+            <th>Thao tác</th>
         </tr>
     </thead>
     <tbody>
@@ -47,11 +47,14 @@
                     }
                 </td>
                 <td>
-                    <a asp-action="Detail" asp-route-id="@user.Id" class="btn btn-info btn-sm">Detail</a>
+                    <a asp-action="Detail" asp-route-id="@user.Id" class="btn btn-info btn-sm">Chi tiết</a>
                     
-                    <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline" onsubmit="return confirm('Are you sure?');">
-                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                    </form>
+                    @if (user.Role != UserRole.Admin)
+                    {
+                        <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn?');">
+                            <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
+                        </form>
+                    }
                 </td>
             </tr>
         }
@@ -64,33 +67,33 @@
         <div class="modal-content">
             <form asp-action="Create" method="post">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="createUserModalLabel">Create User</h5>
+                    <h5 class="modal-title" id="createUserModalLabel">Tạo người dùng</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div asp-validation-summary="All" class="text-danger"></div>
                     <div class="mb-3">
-                        <label class="form-label">Username</label>
+                        <label class="form-label">Tên đăng nhập</label>
                         <input name="Username" class="form-control" required />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Password</label>
+                        <label class="form-label">Mật khẩu</label>
                         <input name="Password" type="password" class="form-control" required />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Full Name</label>
+                        <label class="form-label">Họ và tên</label>
                         <input name="FullName" class="form-control" required />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Role</label>
+                        <label class="form-label">Vai trò</label>
                         <select name="Role" class="form-select" id="roleSelect">
-                            <option value="Teacher">Teacher</option>
-                            <option value="Student">Student</option>
+                            <option value="Teacher">Giáo viên</option>
+                            <option value="Student">Học sinh</option>
                         </select>
                     </div>
 
                     <div class="mb-3" id="subjectSection">
-                        <label class="form-label">Subjects (For Teacher/Student)</label>
+                        <label class="form-label">Môn học (Cho Giáo viên/Học sinh)</label>
                         <div class="d-flex flex-wrap">
                             @if(ViewBag.Subjects != null) {
                                 foreach (var sub in ViewBag.Subjects as List<ExamManagement.Models.Subject>)
@@ -105,8 +108,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-success">Create</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-success">Tạo</button>
                 </div>
             </form>
         </div>

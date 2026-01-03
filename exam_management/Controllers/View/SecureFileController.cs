@@ -35,8 +35,23 @@ namespace ExamManagement.Controllers.View
 
         private IActionResult ServeFile(string folder, string fileName)
         {
+            // Security: Sanitize fileName to prevent path traversal attacks
+            if (string.IsNullOrWhiteSpace(fileName))
+                return BadRequest("Invalid file name.");
+            
+            // Remove any path traversal attempts
+            fileName = Path.GetFileName(fileName); // This removes any directory separators
+            if (string.IsNullOrWhiteSpace(fileName) || fileName.Contains("..") || fileName.Contains("/") || fileName.Contains("\\"))
+                return BadRequest("Invalid file name.");
+            
             var storagePath = Path.Combine(_env.ContentRootPath, "Storage", folder);
             var filePath = Path.Combine(storagePath, fileName);
+            
+            // Additional security: Ensure the resolved path is still within the storage directory
+            var resolvedPath = Path.GetFullPath(filePath);
+            var resolvedStoragePath = Path.GetFullPath(storagePath);
+            if (!resolvedPath.StartsWith(resolvedStoragePath, StringComparison.Ordinal))
+                return BadRequest("Invalid file path.");
 
             if (!System.IO.File.Exists(filePath)) return NotFound("File not found.");
 
@@ -53,10 +68,16 @@ namespace ExamManagement.Controllers.View
         [HttpGet("Submission/{fileName}")]
         public async Task<IActionResult> GetSubmission(string fileName)
         {
+            // Security: Sanitize fileName first
+            if (string.IsNullOrWhiteSpace(fileName))
+                return BadRequest("Invalid file name.");
+            
+            fileName = Path.GetFileName(fileName); // Remove path traversal attempts
+            
             // 1. Find the submission record.
             var submission = await _context.Submissions
                 .Include(s => s.Exam)
-                .FirstOrDefaultAsync(s => s.FilePath.EndsWith(fileName));
+                .FirstOrDefaultAsync(s => s.FilePath.EndsWith(fileName, StringComparison.Ordinal));
 
             if (submission == null) return NotFound("Submission record not found.");
 

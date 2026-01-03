@@ -23,9 +23,42 @@ namespace ExamManagement.Controllers.View
 
         private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
+        // Security: Escape CSV values to prevent CSV injection attacks
+        private string EscapeCsvValue(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            
+            // If value starts with dangerous characters (=, +, -, @, \t, \r), wrap in quotes
+            if (value.StartsWith("=") || value.StartsWith("+") || value.StartsWith("-") || 
+                value.StartsWith("@") || value.StartsWith("\t") || value.StartsWith("\r"))
+            {
+                // Escape quotes by doubling them and wrap in quotes
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            }
+            
+            // If value contains comma, newline, or quote, wrap in quotes
+            if (value.Contains(",") || value.Contains("\n") || value.Contains("\"") || value.Contains("\r"))
+            {
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            }
+            
+            return value;
+        }
+
         [HttpGet("")]
         public async Task<IActionResult> Index(string search)
         {
+            // Security: Sanitize search input
+            if (!string.IsNullOrEmpty(search))
+            {
+                search = search.Trim();
+                // Limit search length to prevent DoS
+                if (search.Length > 100)
+                {
+                    search = search.Substring(0, 100);
+                }
+            }
+            
             var users = string.IsNullOrEmpty(search) 
                 ? await _userService.GetAllUsersAsync() 
                 : await _userService.SearchUsersAsync(search);
@@ -37,10 +70,33 @@ namespace ExamManagement.Controllers.View
         [HttpPost("Create")]
         public async Task<IActionResult> Create(CreateUserVm model)
         {
+            // Security: Input validation and sanitization
+            if (model != null)
+            {
+                model.Username = (model.Username ?? string.Empty).Trim();
+                model.FullName = (model.FullName ?? string.Empty).Trim();
+                model.Password = model.Password ?? string.Empty;
+            }
+            
             // Requirement: Cannot create Admin users
-            if (model.Role == UserRole.Admin)
+            if (model != null && model.Role == UserRole.Admin)
             {
                 ModelState.AddModelError("Role", "Creating Admin users is not allowed.");
+            }
+
+            if (model != null && await _userService.IsUsernameTakenAsync(model.Username))
+            {
+                ModelState.AddModelError("Username", "Username is already taken.");
+            }
+
+            // Security: Validate required fields
+            if (model == null || string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.FullName) || string.IsNullOrWhiteSpace(model.Password))
+            {
+                ModelState.AddModelError("", "Username, Full Name, and Password are required.");
+            }
+            else if (model.Password.Length < 6)
+            {
+                ModelState.AddModelError("", "Password must be at least 6 characters long.");
             }
 
             if (ModelState.IsValid)
@@ -74,10 +130,25 @@ namespace ExamManagement.Controllers.View
                 model.Role = user.Role; 
             }
 
-            user.FullName = model.FullName;
-            user.PhoneNumber = model.PhoneNumber;
-            user.Address = model.Address;
-            user.Role = model.Role; 
+            // Requirement: Cannot set another user's role to Admin
+            if (id != GetUserId() && model.Role == UserRole.Admin && user.Role != UserRole.Admin)
+            {
+                ModelState.AddModelError("Role", "Cannot assign Admin role to other users.");
+                model.Role = user.Role; // Revert
+            }
+
+            // Security: Input validation and sanitization
+            user.FullName = (model.FullName ?? string.Empty).Trim();
+            user.PhoneNumber = (model.PhoneNumber ?? string.Empty).Trim();
+            user.Address = (model.Address ?? string.Empty).Trim();
+            user.Role = model.Role;
+            
+            // Validate FullName is not empty
+            if (string.IsNullOrWhiteSpace(user.FullName))
+            {
+                ModelState.AddModelError("", "Full name is required.");
+                return View("Detail", user);
+            } 
             
             try {
                 await _userService.UpdateUserAsync(user);
@@ -114,8 +185,11 @@ namespace ExamManagement.Controllers.View
             sb.AppendLine("Id,Username,FullName,Role,Gender,Classes");
             foreach (var u in users) 
             {
-                var classes = string.Join(";", u.UserSubjects.Select(us => us.Subject.Name));
-                sb.AppendLine($"{u.Id},{u.Username},{u.FullName},{u.Role},{u.Gender},{classes}");
+                // Security: Escape CSV values to prevent CSV injection
+                var escapedUsername = EscapeCsvValue(u.Username);
+                var escapedFullName = EscapeCsvValue(u.FullName);
+                var classes = string.Join(";", u.UserSubjects.Select(us => EscapeCsvValue(us.Subject.Name)));
+                sb.AppendLine($"{u.Id},{escapedUsername},{escapedFullName},{u.Role},{u.Gender},{classes}");
             }
 
             var fileName = $"users_{DateTime.UtcNow.Ticks}.csv";

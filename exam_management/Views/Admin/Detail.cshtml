@@ -14,23 +14,23 @@
         <dd class="col-sm-10">@Model.Id</dd>
 
         <dt class="col-sm-2">Username</dt>
-        <dd class="col-sm-10">@Model.Username</dd>
+        <dd class="col-sm-10">@Html.Encode(Model.Username)</dd>
 
         <dt class="col-sm-2">Role</dt>
         <dd class="col-sm-10">@Model.Role</dd>
 
         <dt class="col-sm-2">Full Name</dt>
-        <dd class="col-sm-10">@Model.FullName</dd>
+        <dd class="col-sm-10">@Html.Encode(Model.FullName)</dd>
         
         <dt class="col-sm-2">Phone</dt>
-        <dd class="col-sm-10">@Model.PhoneNumber</dd>
+        <dd class="col-sm-10">@Html.Encode(Model.PhoneNumber)</dd>
         
         <dt class="col-sm-2">Address</dt>
-        <dd class="col-sm-10">@Model.Address</dd>
+        <dd class="col-sm-10">@Html.Encode(Model.Address)</dd>
         
         <dt class="col-sm-2">Avatar</dt>
         <dd class="col-sm-10">
-            @if(Model.AvatarUrl != null) { <img src="@Model.AvatarUrl" width="100" /> } else { <span>No Avatar</span> }
+            @if(Model.AvatarUrl != null) { <img src="@Model.AvatarUrl" width="100" /> } else { <img src="/SecureFile/Avatar/avatar.jpg" width="100" /> }
         </dd>
     </dl>
 </div>
