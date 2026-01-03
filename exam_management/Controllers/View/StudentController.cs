@@ -34,7 +34,15 @@ namespace ExamManagement.Controllers.View
             var exam = await _examService.GetExamByIdAsync(id);
             if (exam == null) return NotFound();
 
-            var submission = await _examService.GetStudentSubmissionAsync(id, GetUserId());
+            // Security: Verify student is enrolled in the subject of this exam
+            var studentId = GetUserId();
+            var student = await _examService.GetExamsForStudentAsync(studentId);
+            if (!student.Any(e => e.Id == id))
+            {
+                return Forbid("You can only view exams for subjects you are enrolled in.");
+            }
+
+            var submission = await _examService.GetStudentSubmissionAsync(id, studentId);
             ViewBag.Submission = submission;
 
             return View(exam);
@@ -45,6 +53,13 @@ namespace ExamManagement.Controllers.View
         {
             var userId = GetUserId();
             
+            // Security: Verify student is enrolled in the subject of this exam
+            var student = await _examService.GetExamsForStudentAsync(userId);
+            if (!student.Any(e => e.Id == examId))
+            {
+                return Forbid("You can only submit exams for subjects you are enrolled in.");
+            }
+            
             // Requirement: Check if already submitted
             var existing = await _examService.GetStudentSubmissionAsync(examId, userId);
             if (existing != null)
@@ -54,28 +69,64 @@ namespace ExamManagement.Controllers.View
                 return RedirectToAction("ExamDetail", new { id = examId });
             }
 
-            if (pdfFile != null && pdfFile.Length > 0 && Path.GetExtension(pdfFile.FileName).ToLower() == ".pdf")
-            {
-                var fileName = $"exam_{examId}_student_{userId}_{Guid.NewGuid()}.pdf";
-                
-                // Save to Storage/Submissions (Secure)
-                var storagePath = Path.Combine(_env.ContentRootPath, "Storage", "Submissions");
-                
-                if (!Directory.Exists(storagePath)) Directory.CreateDirectory(storagePath);
-
-                using (var stream = new FileStream(Path.Combine(storagePath, fileName), FileMode.Create))
-                {
-                    await pdfFile.CopyToAsync(stream);
-                }
-
-                // URL points to SecureFileController
-                await _examService.SubmitExamAsync(examId, userId, $"/SecureFile/Submission/{fileName}");
-                TempData["Message"] = "Exam submitted successfully.";
-            }
-            else
+            // Security: Validate file upload
+            if (pdfFile == null || pdfFile.Length == 0)
             {
                 TempData["Error"] = "Please upload a valid PDF file.";
+                return RedirectToAction("ExamDetail", new { id = examId });
             }
+
+            // Security: File size limit (10MB)
+            const long maxFileSize = 10 * 1024 * 1024; // 10MB
+            if (pdfFile.Length > maxFileSize)
+            {
+                TempData["Error"] = "File size exceeds the maximum limit of 10MB.";
+                return RedirectToAction("ExamDetail", new { id = examId });
+            }
+
+            // Security: Validate file extension
+            var extension = Path.GetExtension(pdfFile.FileName).ToLower();
+            if (extension != ".pdf")
+            {
+                TempData["Error"] = "Only PDF files are allowed.";
+                return RedirectToAction("ExamDetail", new { id = examId });
+            }
+
+            // Security: Validate MIME type
+            var allowedMimeTypes = new[] { "application/pdf" };
+            if (!allowedMimeTypes.Contains(pdfFile.ContentType.ToLower()))
+            {
+                TempData["Error"] = "Invalid file type. Only PDF files are allowed.";
+                return RedirectToAction("ExamDetail", new { id = examId });
+            }
+
+            // Security: Sanitize filename
+            var sanitizedFileName = $"exam_{examId}_student_{userId}_{Guid.NewGuid()}.pdf";
+            
+            // Save to Storage/Submissions (Secure)
+            var storagePath = Path.Combine(_env.ContentRootPath, "Storage", "Submissions");
+            
+            if (!Directory.Exists(storagePath)) Directory.CreateDirectory(storagePath);
+
+            var filePath = Path.Combine(storagePath, sanitizedFileName);
+            
+            // Additional security: Ensure path is within storage directory
+            var resolvedPath = Path.GetFullPath(filePath);
+            var resolvedStoragePath = Path.GetFullPath(storagePath);
+            if (!resolvedPath.StartsWith(resolvedStoragePath, StringComparison.Ordinal))
+            {
+                TempData["Error"] = "Invalid file path.";
+                return RedirectToAction("ExamDetail", new { id = examId });
+            }
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await pdfFile.CopyToAsync(stream);
+            }
+
+            // URL points to SecureFileController
+            await _examService.SubmitExamAsync(examId, userId, $"/SecureFile/Submission/{sanitizedFileName}");
+            TempData["Message"] = "Exam submitted successfully.";
 
             return RedirectToAction("ExamDetail", new { id = examId });
         }

@@ -16,8 +16,8 @@ namespace ExamManagement.Data
                 var admin = new User
                 {
                     Username = "admin",
-                    // Use a default password
-                    PasswordHash = authService.HashPassword("admin123"), 
+                    // Use a default password: Admin@123
+                    PasswordHash = authService.HashPassword("Admin@123"), 
                     FullName = "System Administrator",
                     Role = UserRole.Admin,
                     Gender = Gender.Other,

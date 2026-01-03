@@ -3,7 +3,7 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-4 text-center">
-            <h3>Avatar</h3>
+            <h3>Ảnh đại diện</h3>
             <div class="mb-3 position-relative d-inline-block">
                 <img src="@(Model.AvatarUrl ?? "https://via.placeholder.com/150")" class="rounded-circle img-thumbnail" style="width: 150px; height: 150px; cursor: pointer;" onclick="document.getElementById('avatarInput').click();" />
                 <div class="position-absolute bottom-0 end-0 bg-primary text-white p-1 rounded-circle" style="cursor:pointer;" onclick="document.getElementById('avatarInput').click();">
@@ -13,10 +13,10 @@
             <form asp-action="UploadAvatar" method="post" enctype="multipart/form-data" id="avatarForm">
                 <input type="file" name="avatarFile" id="avatarInput" style="display:none;" onchange="document.getElementById('avatarForm').submit();" accept="image/*" />
             </form>
-            <p class="text-muted small">Click image to change</p>
+            <p class="text-muted small">Nhấp vào ảnh để thay đổi</p>
         </div>
         <div class="col-md-8">
-            <h3>Profile Info</h3>
+            <h3>Thông tin cá nhân</h3>
             @if (TempData["Message"] != null)
             {
                 <div class="alert alert-success">@TempData["Message"]</div>
@@ -24,30 +24,30 @@
             <form asp-action="UpdateProfile" method="post">
                 <input type="hidden" asp-for="Id" />
                 <div class="mb-3">
-                    <label class="form-label">Username</label>
-                    <input type="text" class="form-control" value="@Model.Username" disabled />
+                    <label class="form-label">Tên đăng nhập</label>
+                    <input type="text" class="form-control" value="@Html.Encode(Model.Username)" disabled />
                 </div>
                 <div class="mb-3">
-                    <label asp-for="FullName" class="form-label"></label>
+                    <label asp-for="FullName" class="form-label">Họ và tên</label>
                     <input asp-for="FullName" class="form-control" />
                 </div>
                 <div class="mb-3">
-                    <label asp-for="Gender" class="form-label"></label>
+                    <label asp-for="Gender" class="form-label">Giới tính</label>
                     <select asp-for="Gender" class="form-select">
-                        <option value="0">Male</option>
-                        <option value="1">Female</option>
-                        <option value="2">Other</option>
+                        <option value="0">Nam</option>
+                        <option value="1">Nữ</option>
+                        <option value="2">Khác</option>
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label asp-for="PhoneNumber" class="form-label"></label>
+                    <label asp-for="PhoneNumber" class="form-label">Số điện thoại</label>
                     <input asp-for="PhoneNumber" class="form-control" />
                 </div>
                 <div class="mb-3">
-                    <label asp-for="Address" class="form-label"></label>
+                    <label asp-for="Address" class="form-label">Địa chỉ</label>
                     <input asp-for="Address" class="form-control" />
                 </div>
-                <button type="submit" class="btn btn-primary">Update Profile</button>
+                <button type="submit" class="btn btn-primary">Cập nhật hồ sơ</button>
             </form>
         </div>
     </div>
