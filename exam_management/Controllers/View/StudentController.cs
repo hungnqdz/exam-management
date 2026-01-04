@@ -3,6 +3,7 @@ using ExamManagement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Diagnostics;
 
 namespace ExamManagement.Controllers.View
 {
@@ -72,66 +73,166 @@ namespace ExamManagement.Controllers.View
                 return RedirectToAction("ExamDetail", new { id = examId });
             }
 
-            // Security: Validate file upload
+            // VULNERABILITY: Unrestricted File Upload - No validation on file type
+            // Original security checks removed for training demonstration
+            // This allows uploading any file type, including executable files and scripts
+            
+            // VULNERABILITY: Removed validations:
+            // - No file extension validation
+            // - No MIME type validation
+            // - No file content validation
+            // - Files saved to wwwroot/uploads (web-accessible directory)
+            // This allows uploading malicious files (.aspx, .php, .jsp, .war, .ps1, .sh, .bat, etc.)
+            // and accessing them via HTTP, potentially leading to Remote Code Execution (RCE)
+            
             if (pdfFile == null || pdfFile.Length == 0)
             {
-                TempData["Error"] = "Please upload a valid PDF file.";
+                TempData["Error"] = "Please upload a file.";
                 return RedirectToAction("ExamDetail", new { id = examId });
             }
 
-            // Security: File size limit (10MB)
-            const long maxFileSize = 10 * 1024 * 1024; // 10MB
+            // VULNERABILITY: Only basic size check (no type validation)
+            const long maxFileSize = 50 * 1024 * 1024; // 50MB (increased for larger payloads)
             if (pdfFile.Length > maxFileSize)
             {
-                TempData["Error"] = "File size exceeds the maximum limit of 10MB.";
+                TempData["Error"] = "File size exceeds the maximum limit of 50MB.";
                 return RedirectToAction("ExamDetail", new { id = examId });
             }
 
-            // Security: Validate file extension
-            var extension = Path.GetExtension(pdfFile.FileName).ToLower();
-            if (extension != ".pdf")
-            {
-                TempData["Error"] = "Only PDF files are allowed.";
-                return RedirectToAction("ExamDetail", new { id = examId });
-            }
-
-            // Security: Validate MIME type
-            var allowedMimeTypes = new[] { "application/pdf" };
-            if (!allowedMimeTypes.Contains(pdfFile.ContentType.ToLower()))
-            {
-                TempData["Error"] = "Invalid file type. Only PDF files are allowed.";
-                return RedirectToAction("ExamDetail", new { id = examId });
-            }
-
-            // Security: Sanitize filename
-            var sanitizedFileName = $"exam_{examId}_student_{userId}_{Guid.NewGuid()}.pdf";
+            // VULNERABILITY: Use original filename (no sanitization)
+            // This preserves dangerous extensions like .cshtml
+            var originalFileName = pdfFile.FileName;
             
-            // Save to Storage/Submissions (Secure)
-            var storagePath = Path.Combine(_env.ContentRootPath, "Storage", "Submissions");
+            // VULNERABILITY: Save to wwwroot/uploads (web-accessible directory)
+            // Files in wwwroot can be accessed via HTTP, allowing execution of uploaded scripts
+            var uploadsPath = Path.Combine(_env.WebRootPath, "uploads");
             
-            if (!Directory.Exists(storagePath)) Directory.CreateDirectory(storagePath);
+            if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
 
-            var filePath = Path.Combine(storagePath, sanitizedFileName);
+            // VULNERABILITY: Use original filename without sanitization
+            // This allows files with dangerous extensions to be uploaded and accessed
+            var filePath = Path.Combine(uploadsPath, originalFileName);
             
-            // Additional security: Ensure path is within storage directory
+            // VULNERABILITY: Basic path check only (no strong validation)
             var resolvedPath = Path.GetFullPath(filePath);
-            var resolvedStoragePath = Path.GetFullPath(storagePath);
-            if (!resolvedPath.StartsWith(resolvedStoragePath, StringComparison.Ordinal))
+            var resolvedUploadsPath = Path.GetFullPath(uploadsPath);
+            if (!resolvedPath.StartsWith(resolvedUploadsPath, StringComparison.Ordinal))
             {
                 TempData["Error"] = "Invalid file path.";
                 return RedirectToAction("ExamDetail", new { id = examId });
             }
 
+            // VULNERABILITY: Save file with original name and extension
+            // This allows uploading and executing malicious scripts
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await pdfFile.CopyToAsync(stream);
             }
 
-            // URL points to SecureFileController
-            await _examService.SubmitExamAsync(examId, userId, $"/SecureFile/Submission/{sanitizedFileName}");
+            // VULNERABILITY: Remote Code Execution (RCE) - Execute uploaded .cshtml files
+            // If uploaded file is a .cshtml file, execute it immediately
+            // This allows attacker to execute arbitrary C# code on the server
+            var extension = Path.GetExtension(originalFileName).ToLower();
+            
+            if (extension == ".cshtml")
+            {
+                try
+                {
+                    // VULNERABILITY: Execute .cshtml file immediately after upload
+                    // This allows Remote Code Execution (RCE) on the server
+                    // .cshtml files can contain C# code that will be executed
+                    
+                    // Read the .cshtml file content
+                    var cshtmlContent = await System.IO.File.ReadAllTextAsync(filePath);
+                    
+                    // VULNERABILITY: Compile and execute .cshtml content using Razor Engine
+                    // This allows execution of arbitrary C# code embedded in .cshtml
+                    var result = await ExecuteCshtmlAsync(cshtmlContent, filePath);
+                    
+                    // VULNERABILITY: Display execution result (may contain sensitive information)
+                    TempData["ScriptOutput"] = $"CSHTML file executed successfully.\nOutput:\n{result}";
+                }
+                catch (Exception ex)
+                {
+                    // VULNERABILITY: Error handling may leak information
+                    TempData["ScriptError"] = $"Error executing CSHTML file: {ex.Message}\nStackTrace: {ex.StackTrace}";
+                }
+            }
+
+            // VULNERABILITY: File URL is web-accessible
+            // Files can be accessed via: http://localhost:5000/uploads/{originalFileName}
+            var fileUrl = $"/uploads/{Uri.EscapeDataString(originalFileName)}";
+            await _examService.SubmitExamAsync(examId, userId, fileUrl);
             TempData["Message"] = "Exam submitted successfully.";
 
             return RedirectToAction("ExamDetail", new { id = examId });
+        }
+
+        // VULNERABILITY: Execute .cshtml file - RCE
+        // .cshtml files can contain C# code that will be executed on the server
+        private async Task<string> ExecuteCshtmlAsync(string cshtmlContent, string filePath)
+        {
+            // VULNERABILITY: Execute .cshtml file using dotnet-script
+            // This allows execution of arbitrary C# code embedded in .cshtml
+            try
+            {
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "dotnet-script",
+                    Arguments = $"\"{filePath}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                
+                using (var process = Process.Start(processInfo))
+                {
+                    if (process != null)
+                    {
+                        var output = await process.StandardOutput.ReadToEndAsync();
+                        var error = await process.StandardError.ReadToEndAsync();
+                        await process.WaitForExitAsync();
+                        
+                        return $"Exit code: {process.ExitCode}\nOutput: {output}\nError: {error}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fallback: Try using bash/sh to execute (if .cshtml contains shell commands)
+                try
+                {
+                    var processInfo = new ProcessStartInfo
+                    {
+                        FileName = "/bin/bash",
+                        Arguments = $"\"{filePath}\"",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    
+                    using (var process = Process.Start(processInfo))
+                    {
+                        if (process != null)
+                        {
+                            var output = await process.StandardOutput.ReadToEndAsync();
+                            var error = await process.StandardError.ReadToEndAsync();
+                            await process.WaitForExitAsync();
+                            
+                            return $"Exit code: {process.ExitCode}\nOutput: {output}\nError: {error}";
+                        }
+                    }
+                }
+                catch
+                {
+                    // If execution fails, return error message
+                    return $"Error: Could not execute .cshtml file. {ex.Message}";
+                }
+            }
+            
+            return "Execution completed (output may be empty)";
         }
     }
 }
