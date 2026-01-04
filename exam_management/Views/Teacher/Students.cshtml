@@ -117,7 +117,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" name="Id" id="edit_Id" />
                     <div class="mb-3">
                         <label class="form-label">Username</label>
                         <input name="Username" id="edit_Username" class="form-control" disabled />
@@ -153,7 +152,6 @@
         var phone = row.getAttribute('data-phone');
         var address = row.getAttribute('data-address');
 
-        document.getElementById('edit_Id').value = id;
         document.getElementById('edit_Username').value = username;
         document.getElementById('edit_FullName').value = fullname;
         document.getElementById('edit_PhoneNumber').value = phone;

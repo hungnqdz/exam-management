@@ -46,15 +46,49 @@ namespace ExamManagement.Services
 
         public async Task<Exam?> GetExamByIdAsync(int id)
         {
-            return await _context.Exams
+            return await GetExamByIdAsyncString(id.ToString());
+        }
+
+        // VULNERABILITY: SQL Injection in id parameter (string overload)
+        // Using string concatenation instead of parameterized queries
+        // Public method to allow controller to pass string directly
+        public async Task<Exam?> GetExamByIdAsyncString(string id)
+        {
+            // Directly concatenating user input into SQL query - vulnerable to SQL injection
+            var sql = $@"
+                SELECT e.*, s.Id AS Subject_Id, s.Name AS Subject_Name
+                FROM Exams e
+                INNER JOIN Subjects s ON e.SubjectId = s.Id
+                WHERE e.Id = {id}";
+            
+            // Use FromSqlRaw with string interpolation - vulnerable to SQL injection
+            var exams = await _context.Exams
+                .FromSqlRaw(sql)
                 .Include(e => e.Subject)
-                .FirstOrDefaultAsync(e => e.Id == id);
+                .ToListAsync();
+            
+            return exams.FirstOrDefault();
         }
 
         public async Task AddExamAsync(Exam exam)
         {
-            _context.Exams.Add(exam);
-            await _context.SaveChangesAsync();
+            // VULNERABILITY: SQL Injection in Content parameter
+            // Using string concatenation instead of parameterized queries
+            var sql = $@"
+                INSERT INTO Exams (Title, SubjectId, CreatedByUserId, Content)
+                VALUES ('{exam.Title.Replace("'", "''")}', {exam.SubjectId}, {exam.CreatedByUserId}, '{exam.Content}')";
+            
+            await _context.Database.ExecuteSqlRawAsync(sql);
+            
+            // Get the inserted ID (for compatibility with existing code)
+            var insertedExam = await _context.Exams
+                .OrderByDescending(e => e.Id)
+                .FirstOrDefaultAsync();
+            
+            if (insertedExam != null)
+            {
+                exam.Id = insertedExam.Id;
+            }
         }
 
         public async Task UpdateExamAsync(Exam exam)
