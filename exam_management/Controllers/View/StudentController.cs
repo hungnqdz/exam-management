@@ -34,13 +34,16 @@ namespace ExamManagement.Controllers.View
             var exam = await _examService.GetExamByIdAsync(id);
             if (exam == null) return NotFound();
 
-            // Security: Verify student is enrolled in the subject of this exam
+            // VULNERABILITY: IDOR - Missing authorization check for subject enrollment
+            // Original security check removed for training demonstration
+            // Student can now access exams from any subject by changing the ID in URL
             var studentId = GetUserId();
-            var student = await _examService.GetExamsForStudentAsync(studentId);
-            if (!student.Any(e => e.Id == id))
-            {
-                return Forbid("You can only view exams for subjects you are enrolled in.");
-            }
+            
+            // VULNERABILITY: Removed check:
+            // - Student enrollment in the subject
+            // - Authorization verification
+            // This allows students to view exams from subjects they are NOT enrolled in
+            // Example: Student enrolled in Math can view exams from Literature by changing URL parameter
 
             var submission = await _examService.GetStudentSubmissionAsync(id, studentId);
             ViewBag.Submission = submission;

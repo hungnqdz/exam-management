@@ -78,7 +78,11 @@ namespace ExamManagement.Services
 
         public async Task<bool> IsUsernameTakenAsync(string username)
         {
-            return await _context.Users.AnyAsync(u => u.Username == username);
+            if (string.IsNullOrWhiteSpace(username))
+                return false;
+            
+            // Case-insensitive check for username
+            return await _context.Users.AnyAsync(u => u.Username.ToLower() == username.ToLower());
         }
 
         public async Task<List<User>> GetStudentsByTeacherClassAsync(int teacherId)
