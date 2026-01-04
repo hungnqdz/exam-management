@@ -7,7 +7,7 @@ using System.Security.Claims;
 
 namespace ExamManagement.Controllers.View
 {
-    [Authorize(Roles = "Teacher")]
+    [Authorize] // VULNERABILITY: Changed from [Authorize(Roles = "Teacher")] to allow any authenticated user
     [Route("Teacher")]
     public class TeacherController : Controller
     {
@@ -24,6 +24,7 @@ namespace ExamManagement.Controllers.View
 
         // --- Student Management ---
         [HttpGet("Students")]
+        [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> Students(string search)
         {
             var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());
@@ -127,6 +128,7 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpPost("Students/Edit/{id}")]
+        [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> EditStudent(int id, User model)
         {
              // Security: Verify the student belongs to teacher's classes
@@ -170,6 +172,7 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpPost("Students/Delete/{id}")]
+        [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> DeleteStudent(int id)
         {
              // Security: Verify the student belongs to teacher's classes
@@ -193,6 +196,7 @@ namespace ExamManagement.Controllers.View
 
         // --- Exam Management ---
         [HttpGet("Exams")]
+        [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> Exams()
         {
             var exams = await _examService.GetExamsForTeacherAsync(GetUserId());
@@ -200,6 +204,7 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpGet("Exams/Create")]
+        [Authorize(Roles = "Teacher")]
         public IActionResult CreateExam()
         {
             // No need to load subjects anymore as we infer it
@@ -207,6 +212,7 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpPost("Exams/Create")]
+        [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> CreateExam(Exam model)
         {
             var teacherId = GetUserId();
@@ -251,6 +257,7 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpGet("Exams/Detail/{id}")]
+        [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> ExamDetail(int id)
         {
             var exam = await _examService.GetExamByIdAsync(id);
@@ -273,31 +280,30 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpPost("Exams/Grade")]
+        [IgnoreAntiforgeryToken] // VULNERABILITY: Disable CSRF protection for training - allows direct POST requests
+        // VULNERABILITY: Missing [Authorize(Roles = "Teacher")] - allows any authenticated user to grade
+        // Class-level [Authorize] only checks authentication, not role
         public async Task<IActionResult> Grade(int submissionId, double score, int examId)
         {
-            // Security: Verify teacher has permission to grade this exam
-            var teacherId = GetUserId();
+            // VULNERABILITY: Missing role authorization check - any authenticated user can grade
+            // Original security check removed for training demonstration
+            var userId = GetUserId();
             var exam = await _examService.GetExamByIdAsync(examId);
             if (exam == null) return NotFound();
             
-            // Verify teacher teaches the subject of this exam
-            var teacher = await _userService.GetUserByIdAsync(teacherId);
-            if (teacher == null) return NotFound();
+            // VULNERABILITY: Removed check for teacher role and subject assignment
+            // This allows students to grade exams (privilege escalation vulnerability)
+            // Student chỉ cần thay access_token trong request là có thể chấm điểm
             
-            var teacherTeachesSubject = teacher.UserSubjects.Any(us => us.SubjectId == exam.SubjectId);
-            if (!teacherTeachesSubject)
-            {
-                return Forbid("You can only grade exams for subjects you teach.");
-            }
-            
-            // Security: Validate score range
+            // Only validate score range
             if (score < 0 || score > 10)
             {
                 TempData["Error"] = "Score must be between 0 and 10.";
                 return RedirectToAction("ExamDetail", new { id = examId });
             }
             
-            await _examService.GradeSubmissionAsync(submissionId, score, teacherId);
+            // VULNERABILITY: Any authenticated user (including students) can now grade submissions
+            await _examService.GradeSubmissionAsync(submissionId, score, userId);
             return RedirectToAction("ExamDetail", new { id = examId });
         }
     }

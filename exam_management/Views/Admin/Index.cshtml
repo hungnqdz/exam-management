@@ -72,9 +72,17 @@
                 </div>
                 <div class="modal-body">
                     <div asp-validation-summary="All" class="text-danger"></div>
+                    @if (TempData["Message"] != null)
+                    {
+                        <div class="alert alert-success">@TempData["Message"]</div>
+                    }
                     <div class="mb-3">
                         <label class="form-label">Tên đăng nhập</label>
                         <input name="Username" class="form-control" required />
+                        @if (ViewData.ModelState["Username"]?.Errors?.Count > 0)
+                        {
+                            <span class="text-danger">@ViewData.ModelState["Username"].Errors[0].ErrorMessage</span>
+                        }
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Mật khẩu</label>

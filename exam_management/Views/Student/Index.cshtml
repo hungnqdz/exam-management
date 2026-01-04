@@ -11,7 +11,7 @@
             <tr>
                 <td>@e.Id</td>
                 <td>@e.Subject?.Name</td>
-                <td>@e.Title</td>
+                <td>@Html.Raw(e.Title)</td>
                 <td><a asp-action="ExamDetail" asp-route-id="@e.Id" class="btn btn-primary btn-sm">View & Submit</a></td>
             </tr>
         }
