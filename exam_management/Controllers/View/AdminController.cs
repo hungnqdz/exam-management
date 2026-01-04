@@ -78,25 +78,30 @@ namespace ExamManagement.Controllers.View
                 model.Password = model.Password ?? string.Empty;
             }
             
-            // Requirement: Cannot create Admin users
-            if (model != null && model.Role == UserRole.Admin)
-            {
-                ModelState.AddModelError("Role", "Creating Admin users is not allowed.");
-            }
-
-            if (model != null && await _userService.IsUsernameTakenAsync(model.Username))
-            {
-                ModelState.AddModelError("Username", "Username is already taken.");
-            }
-
-            // Security: Validate required fields
+            // Security: Validate required fields first
             if (model == null || string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.FullName) || string.IsNullOrWhiteSpace(model.Password))
             {
                 ModelState.AddModelError("", "Username, Full Name, and Password are required.");
             }
-            else if (model.Password.Length < 6)
+            else
             {
-                ModelState.AddModelError("", "Password must be at least 6 characters long.");
+                // Check username is already taken (case-insensitive check)
+                if (await _userService.IsUsernameTakenAsync(model.Username))
+                {
+                    ModelState.AddModelError("Username", $"Tên đăng nhập '{model.Username}' đã tồn tại. Vui lòng chọn tên đăng nhập khác.");
+                }
+                
+                // Validate password length
+                if (model.Password.Length < 6)
+                {
+                    ModelState.AddModelError("Password", "Mật khẩu phải có ít nhất 6 ký tự.");
+                }
+            }
+            
+            // Requirement: Cannot create Admin users
+            if (model != null && model.Role == UserRole.Admin)
+            {
+                ModelState.AddModelError("Role", "Không thể tạo người dùng Admin.");
             }
 
             if (ModelState.IsValid)
@@ -104,9 +109,10 @@ namespace ExamManagement.Controllers.View
                 var user = new User { Username = model.Username, FullName = model.FullName, Role = model.Role };
                 try {
                     await _userService.CreateUserAsync(user, model.Password, model.SubjectIds);
+                    TempData["Message"] = $"Đã tạo người dùng '{model.Username}' thành công.";
                     return RedirectToAction("Index");
                 } catch(Exception ex) {
-                    ModelState.AddModelError("", ex.Message);
+                    ModelState.AddModelError("", $"Lỗi khi tạo người dùng: {ex.Message}");
                 }
             }
             ViewBag.Subjects = await _userService.GetAllSubjectsAsync();
