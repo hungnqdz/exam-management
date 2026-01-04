@@ -34,17 +34,15 @@ namespace ExamManagement.Controllers.View
             var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());
             if (!string.IsNullOrEmpty(search))
             {
-                // Security: Sanitize search input to prevent injection
-                search = search.Trim();
-                // Limit search length to prevent DoS
-                if (search.Length > 100)
-                {
-                    search = search.Substring(0, 100);
-                }
+                // VULNERABILITY: No sanitization - search input is directly used
                 // Case-insensitive search
                 var searchLower = search.ToLower();
                 myStudents = myStudents.Where(s => s.Username.ToLower().Contains(searchLower) || s.FullName.ToLower().Contains(searchLower)).ToList();
             }
+            // VULNERABILITY: Reflected XSS - Search term is passed directly to view without HTML encoding
+            // This allows attackers to inject malicious JavaScript that will execute in the victim's browser
+            // Example payload: <script>alert('XSS')</script>
+            // Or: <img src=x onerror=alert('XSS')>
             ViewBag.Search = search;
             
             // Load subjects for Create Modal

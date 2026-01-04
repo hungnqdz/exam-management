@@ -3,7 +3,7 @@
 
 <h2>User Details</h2>
 
-<div id="view-mode">
+<div id="view-mode" style="@(ViewBag.ShowEditMode == true ? "display:none;" : "")">
     <div class="mb-3">
         <button class="btn btn-warning" onclick="enableEdit()">Edit</button>
         <a asp-action="Index" class="btn btn-secondary">Back</a>
@@ -35,8 +35,35 @@
     </dl>
 </div>
 
-<div id="edit-mode" style="display:none;">
+<div id="edit-mode" style="@(ViewBag.ShowEditMode == true ? "" : "display:none;")">
     <h3>Edit User</h3>
+    
+    @* Display validation errors - SQL Injection errors will show here *@
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert">
+            <h5>⚠️ Errors:</h5>
+            <ul class="mb-0">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@Html.Raw(error.ErrorMessage.Replace(Environment.NewLine, "<br/>"))</li>
+                }
+            </ul>
+        </div>
+    }
+    
+    @* Display PhoneNumber specific errors (SQL Injection) *@
+    @if (ViewData.ModelState["PhoneNumber"]?.Errors.Count > 0)
+    {
+        <div class="alert alert-warning border-danger" role="alert">
+            <strong>⚠️ SQL INJECTION DETECTED in PhoneNumber field!</strong>
+            @foreach (var error in ViewData.ModelState["PhoneNumber"].Errors)
+            {
+                <div class="mt-2">@Html.Raw(error.ErrorMessage.Replace(Environment.NewLine, "<br/>"))</div>
+            }
+        </div>
+    }
+    
     <form asp-action="Edit" asp-route-id="@Model.Id" method="post" class="w-50">
         <input type="hidden" name="Id" value="@Model.Id" />
         <div class="mb-3">

@@ -14,8 +14,8 @@
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createUserModal">
             Tạo người dùng
         </button>
-        <!-- Changed to POST for Action-based Export flow -->
-        <form asp-action="Export" method="post" class="d-inline-block ms-2">
+        <!-- VULNERABILITY: CSRF - Form without anti-forgery token -->
+        <form action="/Admin/Export" method="post" class="d-inline-block ms-2">
             <button type="submit" class="btn btn-secondary">Xuất CSV</button>
         </form>
     </div>

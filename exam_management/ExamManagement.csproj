@@ -4,7 +4,15 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <Compile Remove="PayloadGen/**" />
+    <Content Remove="PayloadGen/**" />
+    <EmbeddedResource Remove="PayloadGen/**" />
+    <None Remove="PayloadGen/**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
