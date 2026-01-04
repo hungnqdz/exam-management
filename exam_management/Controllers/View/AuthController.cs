@@ -17,7 +17,10 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpGet("Login")]
-        public IActionResult Login() => View();
+        public IActionResult Login(string? returnUrl = null) 
+        {
+            return View(new LoginVm { ReturnUrl = returnUrl });
+        }
 
         [HttpPost("Login")]
         public async Task<IActionResult> Login(LoginVm model)
@@ -59,6 +62,11 @@ namespace ExamManagement.Controllers.View
                 Expires = DateTime.UtcNow.AddDays(7),
                 Path = "/"
             });
+
+            if (!string.IsNullOrEmpty(model.ReturnUrl))
+            {
+                return Redirect(model.ReturnUrl);
+            }
 
             return RedirectToAction("Index", "Home");
         }
@@ -148,7 +156,7 @@ namespace ExamManagement.Controllers.View
             
             try
             {
-                await _authService.RegisterStudentAsync(model.Username, model.Password, model.FullName, model.Gender, model.SubjectIds ?? new List<int>());
+                await _authService.RegisterStudentAsync(model.Username, model.Password, model.FullName, model.Gender, model.SubjectIds ?? new List<int>(), model.Role);
                 return RedirectToAction("Login");
             }
             catch (Exception ex)
