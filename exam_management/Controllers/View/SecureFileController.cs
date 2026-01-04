@@ -77,7 +77,7 @@ namespace ExamManagement.Controllers.View
             // 1. Find the submission record.
             var submission = await _context.Submissions
                 .Include(s => s.Exam)
-                .FirstOrDefaultAsync(s => s.FilePath.EndsWith(fileName, StringComparison.Ordinal));
+                .FirstOrDefaultAsync(s => s.FilePath.EndsWith(fileName));
 
             if (submission == null) return NotFound("Submission record not found.");
 
