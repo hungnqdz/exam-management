@@ -1,8 +1,10 @@
+using ExamManagement.Data;
 using ExamManagement.Models;
 using ExamManagement.Services;
 using ExamManagement.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace ExamManagement.Controllers.View
@@ -13,11 +15,13 @@ namespace ExamManagement.Controllers.View
     {
         private readonly IUserService _userService;
         private readonly IExamService _examService;
+        private readonly AppDbContext _context;
 
-        public TeacherController(IUserService userService, IExamService examService)
+        public TeacherController(IUserService userService, IExamService examService, AppDbContext context)
         {
             _userService = userService;
             _examService = examService;
+            _context = context;
         }
 
         private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -81,14 +85,25 @@ namespace ExamManagement.Controllers.View
                 ModelState.AddModelError("Username", "Username is already taken.");
             }
 
-            // Requirement: Validate teacher can only assign to their subjects
+            // VULNERABILITY: Parameter Manipulation
+            // Removed validation that checks if teacher teaches the subject
+            // Only validates that subject exists in the system, not that teacher teaches it
+            // This allows teacher to create students for subjects they don't teach
             var teacherId = GetUserId();
             var teacher = await _userService.GetUserByIdAsync(teacherId);
-            var teacherSubjectIds = teacher?.UserSubjects.Select(us => us.SubjectId).ToList() ?? new List<int>();
-
-            if (model != null && model.SubjectIds != null && model.SubjectIds.Any(sid => !teacherSubjectIds.Contains(sid)))
+            
+            if (model != null && model.SubjectIds != null && model.SubjectIds.Any())
             {
-                ModelState.AddModelError("SubjectIds", "You can only assign students to your own classes.");
+                // Get all valid subject IDs from database
+                var validSubjectIds = await _context.Subjects.Select(s => s.Id).ToListAsync();
+                
+                // Check if all provided subject IDs exist in the system
+                var invalidSubjectIds = model.SubjectIds.Where(sid => !validSubjectIds.Contains(sid)).ToList();
+                if (invalidSubjectIds.Any())
+                {
+                    ModelState.AddModelError("SubjectIds", $"Invalid subject IDs: {string.Join(", ", invalidSubjectIds)}. These subjects do not exist in the system.");
+                }
+                // No check for whether teacher actually teaches these subjects - VULNERABILITY
             }
             
             if (ModelState.IsValid)
@@ -127,19 +142,18 @@ namespace ExamManagement.Controllers.View
             return View("Students", myStudents);
         }
 
+        // VULNERABILITY: IDOR (Insecure Direct Object Reference)
+        // Removed validation that checks if student belongs to teacher's classes
+        // This allows teacher to edit students from other subjects they don't teach
         [HttpPost("Students/Edit/{id}")]
         [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> EditStudent(int id, User model)
         {
-             // Security: Verify the student belongs to teacher's classes
              var teacherId = GetUserId();
-             var myStudents = await _userService.GetStudentsByTeacherClassAsync(teacherId);
              
-             // Check if the student is in teacher's classes
-             if (!myStudents.Any(s => s.Id == id))
-             {
-                 return Forbid("You can only edit students in your classes.");
-             }
+             // VULNERABILITY: No authorization check - removed validation that verifies student belongs to teacher's classes
+             // Previously checked: if (!myStudents.Any(s => s.Id == id)) return Forbid(...);
+             // Now any teacher can edit any student by manipulating the id parameter in the URL
              
              // Basic edit for teacher: Name, Phone, Address
              var user = await _userService.GetUserByIdAsync(id);
@@ -156,6 +170,7 @@ namespace ExamManagement.Controllers.View
                  ModelState.AddModelError("", "Full name is required.");
                  var teacher = await _userService.GetUserByIdAsync(teacherId);
                  ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
+                 var myStudents = await _userService.GetStudentsByTeacherClassAsync(teacherId);
                  return View("Students", myStudents);
              }
              
@@ -166,6 +181,7 @@ namespace ExamManagement.Controllers.View
                  ModelState.AddModelError("", ex.Message);
                  var teacher = await _userService.GetUserByIdAsync(teacherId);
                  ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
+                 var myStudents = await _userService.GetStudentsByTeacherClassAsync(teacherId);
                  
                  return View("Students", myStudents);
              }
@@ -174,6 +190,31 @@ namespace ExamManagement.Controllers.View
         [HttpPost("Students/Delete/{id}")]
         [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> DeleteStudent(int id)
+        {
+             // Security: Verify the student belongs to teacher's classes
+             var teacherId = GetUserId();
+             var myStudents = await _userService.GetStudentsByTeacherClassAsync(teacherId);
+             
+             // Check if the student is in teacher's classes
+             if (!myStudents.Any(s => s.Id == id))
+             {
+                 return Forbid("You can only delete students in your classes.");
+             }
+             
+             var user = await _userService.GetUserByIdAsync(id);
+             if (user != null && user.Role == UserRole.Student)
+             {
+                 await _userService.DeleteUserAsync(id);
+             }
+             return RedirectToAction("Students");
+        }
+
+        // VULNERABILITY: CSRF - GET endpoint without CSRF protection
+        // Attacker can create a malicious link: /Teacher/Students/Delete/{id}
+        // When user clicks the link, student will be deleted without CSRF token validation
+        [HttpGet("Students/Delete/{id}")]
+        [Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryToken]
+        public async Task<IActionResult> DeleteStudentGet(int id)
         {
              // Security: Verify the student belongs to teacher's classes
              var teacherId = GetUserId();
@@ -204,7 +245,7 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpGet("Exams/Create")]
-        [Authorize(Roles = "Teacher")]
+        [Microsoft.AspNetCore.Authorization.AllowAnonymous]
         public IActionResult CreateExam()
         {
             // No need to load subjects anymore as we infer it
@@ -256,11 +297,26 @@ namespace ExamManagement.Controllers.View
             }
         }
 
+        // VULNERABILITY: SQL Injection in id parameter
+        // Accepting string id instead of int to allow SQL injection payloads
         [HttpGet("Exams/Detail/{id}")]
-        [Authorize(Roles = "Teacher")]
-        public async Task<IActionResult> ExamDetail(int id)
+        public async Task<IActionResult> ExamDetail(string id)
         {
-            var exam = await _examService.GetExamByIdAsync(id);
+            // VULNERABILITY: Directly using string id in SQL query without validation
+            // Convert string to int, but if conversion fails or contains SQL, it will be vulnerable
+            if (!int.TryParse(id, out int examId))
+            {
+                // Still pass the string to service - vulnerable to SQL injection
+                // This allows SQL injection even if id is not a valid integer
+                examId = 0; // Default value, but we'll use the raw string in SQL
+            }
+            
+            // Use the raw string id in SQL query - vulnerable to SQL injection
+            // Call method that accepts string directly to bypass int validation
+            var examService = _examService as ExamService;
+            var exam = examService != null 
+                ? await examService.GetExamByIdAsyncString(id)
+                : await _examService.GetExamByIdAsync(int.TryParse(id, out int parsedId) ? parsedId : 0);
             if (exam == null) return NotFound();
             
             // Security: Verify teacher has permission to view this exam
@@ -274,7 +330,8 @@ namespace ExamManagement.Controllers.View
                 return Forbid("You can only view exams for subjects you teach.");
             }
             
-            var submissions = await _examService.GetSubmissionsForExamAsync(id);
+            // Use parsed int for submissions to avoid breaking existing functionality
+            var submissions = await _examService.GetSubmissionsForExamAsync(examId);
             ViewBag.Submissions = submissions;
             return View(exam);
         }
