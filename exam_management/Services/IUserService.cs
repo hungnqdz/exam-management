@@ -8,6 +8,7 @@ namespace ExamManagement.Services
         Task<User?> GetUserByIdAsync(int id);
         Task<User> CreateUserAsync(User user, string password, List<int>? subjectIds = null);
         Task UpdateUserAsync(User user);
+        Task UpdatePhoneNumberAsync(int userId, string phoneNumber);
         Task DeleteUserAsync(int id);
         Task ChangePasswordAsync(int userId, string newPassword);
         Task<List<User>> SearchUsersAsync(string term);
