@@ -129,6 +129,8 @@ namespace ExamManagement.Controllers.View
                 }
             }
             ViewBag.Subjects = await _userService.GetAllSubjectsAsync();
+            ViewBag.ShowCreateModal = true; // Flag to reopen modal
+            ViewBag.CreateUserModel = model; // Preserve form data
             // Reload data for Index view
             var users = await _userService.GetAllUsersAsync();
             return View("Index", users);

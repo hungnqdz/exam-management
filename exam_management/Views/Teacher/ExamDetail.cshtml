@@ -4,6 +4,14 @@
 }
 
 <h2>Exam Detail: @Model.Title</h2>
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success">@TempData["Message"]</div>
+}
 <p><strong>Subject:</strong> @Model.Subject?.Name</p>
 <p><strong>Content:</strong> @Model.Content</p>
 
@@ -19,10 +27,10 @@
         </tr>
     </thead>
     <tbody>
-        @foreach (var sub in submissions)
+        @foreach (var sub in submissions ?? new List<ExamManagement.Models.Submission>())
         {
             <tr>
-                <td>@sub.Student.FullName</td>
+                <td>@(sub.Student?.FullName ?? "N/A")</td>
                 <td>@sub.SubmittedAt</td>
                 <td><a href="@sub.FilePath" target="_blank" class="btn btn-sm btn-outline-info">View PDF</a></td>
                 <td>@(sub.Score.HasValue ? sub.Score.Value.ToString() : "Not Graded")</td>
@@ -37,14 +45,21 @@
                             <div class="modal-content">
                                 <form asp-action="Grade" method="post">
                                     <div class="modal-header">
-                                        <h5 class="modal-title">Grade Student: @sub.Student.FullName</h5>
+                                        <h5 class="modal-title">Grade Student: @(sub.Student?.FullName ?? "N/A")</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
+                                        @{
+                                            var gradeSubId = TempData["GradeSubmissionId"] != null && TempData["GradeSubmissionId"] is int ? (int)TempData["GradeSubmissionId"] : (int?)null;
+                                        }
+                                        @if (TempData["Error"] != null && gradeSubId.HasValue && gradeSubId.Value == sub.Id)
+                                        {
+                                            <div class="alert alert-danger">@TempData["Error"]</div>
+                                        }
                                         <input type="hidden" name="submissionId" value="@sub.Id" />
                                         <input type="hidden" name="examId" value="@Model.Id" />
                                         <label>Score (1-10)</label>
-                                        <input type="number" name="score" min="1" max="10" step="0.5" class="form-control" required />
+                                        <input type="number" name="score" min="1" max="10" step="0.5" class="form-control" value="@(gradeSubId.HasValue && gradeSubId.Value == sub.Id && TempData["GradeScore"] != null ? TempData["GradeScore"].ToString() : "")" required />
                                     </div>
                                     <div class="modal-footer">
                                         <button type="submit" class="btn btn-primary">Save Grade</button>
@@ -59,3 +74,21 @@
     </tbody>
 </table>
 <a asp-action="Exams" class="btn btn-secondary">Back to List</a>
+
+<script>
+    // Auto-open grade modal if there are validation errors
+    @{
+        var showGradeModal = TempData["ShowGradeModal"] != null && TempData["ShowGradeModal"] is bool && (bool)TempData["ShowGradeModal"];
+        var gradeSubmissionId = TempData["GradeSubmissionId"] != null && TempData["GradeSubmissionId"] is int ? (int)TempData["GradeSubmissionId"] : (int?)null;
+    }
+    @if (showGradeModal && gradeSubmissionId.HasValue)
+    {
+        <text>
+        document.addEventListener('DOMContentLoaded', function() {
+            var modalId = '#gradeModal-@gradeSubmissionId.Value';
+            var gradeModal = new bootstrap.Modal(document.querySelector(modalId));
+            gradeModal.show();
+        });
+        </text>
+    }
+</script>

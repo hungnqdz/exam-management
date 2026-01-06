@@ -127,6 +127,13 @@ namespace ExamManagement.Controllers.View
             // Reload subjects on error
             ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
             
+            // Set flag to reopen modal if there are validation errors
+            if (!ModelState.IsValid)
+            {
+                ViewBag.ShowCreateModal = true;
+                ViewBag.CreateStudentModel = model; // Preserve form data
+            }
+            
             var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());
             return View("Students", myStudents);
         }
@@ -152,6 +159,17 @@ namespace ExamManagement.Controllers.View
                  ModelState.AddModelError("", "Full name is required.");
                  var teacher = await _userService.GetUserByIdAsync(teacherId);
                  ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
+                 
+                 // Set flag to reopen modal if there are validation errors
+                 ViewBag.ShowEditModal = true;
+                 ViewBag.EditStudentId = id;
+                 ViewBag.EditStudentData = new { 
+                     Username = user.Username, 
+                     FullName = model?.FullName ?? user.FullName, 
+                     PhoneNumber = model?.PhoneNumber ?? user.PhoneNumber, 
+                     Address = model?.Address ?? user.Address 
+                 };
+                 
                  var myStudents = await _userService.GetStudentsByTeacherClassAsync(teacherId);
                  return View("Students", myStudents);
              }
@@ -163,6 +181,17 @@ namespace ExamManagement.Controllers.View
                  ModelState.AddModelError("", ex.Message);
                  var teacher = await _userService.GetUserByIdAsync(teacherId);
                  ViewBag.Subjects = teacher?.UserSubjects.Select(us => us.Subject).ToList() ?? new List<Subject>();
+                 
+                 // Set flag to reopen modal if there are validation errors
+                 ViewBag.ShowEditModal = true;
+                 ViewBag.EditStudentId = id;
+                 ViewBag.EditStudentData = new { 
+                     Username = user.Username, 
+                     FullName = model?.FullName ?? user.FullName, 
+                     PhoneNumber = model?.PhoneNumber ?? user.PhoneNumber, 
+                     Address = model?.Address ?? user.Address 
+                 };
+                 
                  var myStudents = await _userService.GetStudentsByTeacherClassAsync(teacherId);
                  
                  return View("Students", myStudents);
@@ -320,6 +349,9 @@ namespace ExamManagement.Controllers.View
             if (score < 0 || score > 10)
             {
                 TempData["Error"] = "Score must be between 0 and 10.";
+                TempData["ShowGradeModal"] = true;
+                TempData["GradeSubmissionId"] = submissionId;
+                TempData["GradeScore"] = score; // Preserve score value
                 return RedirectToAction("ExamDetail", new { id = examId });
             }
             
