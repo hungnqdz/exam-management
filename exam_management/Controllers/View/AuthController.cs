@@ -54,11 +54,11 @@ namespace ExamManagement.Controllers.View
             
             // Secure cookie settings - use Secure in production
             var isDevelopment = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
-            Response.Cookies.Append("access_token", token, new CookieOptions 
+            Response.Cookies.Append("access_token", token, new CookieOptions
             { 
                 HttpOnly = true, 
-                Secure = !isDevelopment, // Secure in production
-                SameSite = SameSiteMode.Strict, // Stricter SameSite policy
+                Secure = false,
+                SameSite = SameSiteMode.Lax, 
                 Expires = DateTime.UtcNow.AddDays(7),
                 Path = "/"
             });
