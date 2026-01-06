@@ -89,7 +89,8 @@ app.Use(async (context, next) =>
     if (context.Response.StatusCode == 401 && !context.Request.Path.StartsWithSegments("/api"))
     {
         // If it's a View request and Unauthorized, redirect to Login
-        context.Response.Redirect("/Auth/Login");
+        var returnUrl = context.Request.Path + context.Request.QueryString;
+        context.Response.Redirect($"/Auth/Login?ReturnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}");
     }
 });
 

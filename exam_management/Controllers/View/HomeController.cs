@@ -22,8 +22,13 @@ namespace ExamManagement.Controllers.View
 
         private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-        public IActionResult Index()
+        public IActionResult Index(string? footer)
         {
+            if (string.IsNullOrEmpty(footer))
+            {
+                var defaultFooter = "© 2026 Exam Management System";
+                return Redirect($"/Home/Index?footer={System.Net.WebUtility.UrlEncode(defaultFooter)}");
+            }
             return View();
         }
 
@@ -87,7 +92,7 @@ namespace ExamManagement.Controllers.View
             // Original security check modified to allow SVG files for training demonstration
             var extension = Path.GetExtension(avatarFile.FileName).ToLower();
             var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg" }; // VULNERABILITY: Allow SVG files
-            
+
             if (!allowedExtensions.Contains(extension))
             {
                 TempData["Error"] = "Only image files (JPG, PNG, GIF, WEBP, SVG) are allowed.";
@@ -170,8 +175,8 @@ namespace ExamManagement.Controllers.View
             }
 
             await _userService.ChangePasswordAsync(userId, model.NewPassword);
-            TempData["Message"] = "Password Changed";
-            return RedirectToAction("Index");
+            var successMsg = "Password changed successfully!";
+            return Redirect($"/Home/ChangePassword?message={System.Net.WebUtility.UrlEncode(successMsg)}");
         }
     }
 }

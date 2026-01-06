@@ -74,12 +74,14 @@ namespace ExamManagement.Services
             return user;
         }
 
-        public async Task<User> RegisterStudentAsync(string username, string password, string fullname, Gender gender, List<int> subjectIds)
+        public async Task<User> RegisterStudentAsync(string username, string password, string fullname, Gender gender, List<int> subjectIds, UserRole? role = null)
         {
             if (await _context.Users.AnyAsync(u => u.Username == username))
             {
                 throw new Exception("Username already exists");
             }
+
+            var userRole = role.HasValue ? role.Value : UserRole.Student;
 
             var user = new User
             {
@@ -87,7 +89,7 @@ namespace ExamManagement.Services
                 PasswordHash = HashPassword(password),
                 FullName = fullname,
                 Gender = gender,
-                Role = UserRole.Student
+                Role = userRole
             };
 
             _context.Users.Add(user);
