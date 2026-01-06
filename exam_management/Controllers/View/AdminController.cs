@@ -260,13 +260,25 @@ namespace ExamManagement.Controllers.View
             sb.AppendLine("Id,Username,FullName,Role,Gender,Classes");
             foreach (var u in users) 
             {
+                // Security: Escape CSV values to prevent CSV injection
                 var escapedUsername = EscapeCsvValue(u.Username);
                 var escapedFullName = EscapeCsvValue(u.FullName);
                 var classes = string.Join(";", u.UserSubjects.Select(us => EscapeCsvValue(us.Subject.Name)));
                 sb.AppendLine($"{u.Id},{escapedUsername},{escapedFullName},{u.Role},{u.Gender},{classes}");
             }
 
-            return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"users_{DateTime.Now.Ticks}.csv");
+            var fileName = $"users_{DateTime.UtcNow.Ticks}.csv";
+
+            // Save to Storage/Exports (Secure)
+            var storagePath = Path.Combine(_env.ContentRootPath, "Storage", "Exports");
+
+            if (!Directory.Exists(storagePath)) Directory.CreateDirectory(storagePath);
+
+            var filePath = Path.Combine(storagePath, fileName);
+            await System.IO.File.WriteAllTextAsync(filePath, sb.ToString(), Encoding.UTF8);
+
+            // Redirect to SecureFileController
+            return RedirectToAction("GetExport", "SecureFile", new { fileName = fileName });
         }
     }
 }
