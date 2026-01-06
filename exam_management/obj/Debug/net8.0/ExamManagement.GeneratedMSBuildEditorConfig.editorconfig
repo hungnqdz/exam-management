@@ -18,6 +18,18 @@ build_property.GenerateRazorMetadataSourceChecksumAttributes =
 build_property.MSBuildProjectDirectory = /home/kali/Desktop/code/exam-management/exam_management
 build_property._RazorSourceGeneratorDebug = 
 
+[/home/kali/Desktop/code/exam-management/exam_management/wwwroot/uploads/shell.cshtml]
+build_metadata.AdditionalFiles.TargetPath = d3d3cm9vdC91cGxvYWRzL3NoZWxsLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/kali/Desktop/code/exam-management/exam_management/wwwroot/uploads/shell2.cshtml]
+build_metadata.AdditionalFiles.TargetPath = d3d3cm9vdC91cGxvYWRzL3NoZWxsMi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/kali/Desktop/code/exam-management/exam_management/wwwroot/uploads/shell3.cshtml]
+build_metadata.AdditionalFiles.TargetPath = d3d3cm9vdC91cGxvYWRzL3NoZWxsMy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [/home/kali/Desktop/code/exam-management/exam_management/Views/Admin/Detail.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWRtaW4vRGV0YWlsLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 

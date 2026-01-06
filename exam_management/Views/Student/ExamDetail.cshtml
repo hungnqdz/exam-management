@@ -14,6 +14,17 @@
 {
     <div class="alert alert-success">@TempData["Message"]</div>
 }
+@if (TempData["ScriptOutput"] != null)
+{
+    <div class="alert alert-info">
+        <strong>Script Execution Result:</strong>
+        <pre style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">@TempData["ScriptOutput"]</pre>
+    </div>
+}
+@if (TempData["ScriptError"] != null)
+{
+    <div class="alert alert-warning">@TempData["ScriptError"]</div>
+}
 
 <div class="card mb-4">
     <div class="card-header">Question Content</div>
@@ -50,8 +61,10 @@
             <form asp-action="SubmitExam" method="post" enctype="multipart/form-data">
                 <input type="hidden" name="examId" value="@Model.Id" />
                 <div class="mb-3">
-                    <label>Upload PDF</label>
-                    <input type="file" name="pdfFile" class="form-control" accept="application/pdf" required />
+                    <label>Upload File</label>
+                    <!-- VULNERABILITY: Unrestricted File Upload - No file type restriction -->
+                    <!-- Removed accept="application/pdf" to allow all file types -->
+                    <input type="file" name="pdfFile" class="form-control" required />
                 </div>
                 <button type="submit" class="btn btn-primary">Upload & Submit</button>
             </form>
