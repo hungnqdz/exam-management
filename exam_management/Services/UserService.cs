@@ -108,11 +108,8 @@ namespace ExamManagement.Services
             return await _context.Subjects.ToListAsync();
         }
 
-        // VULNERABILITY: SQL Injection - PhoneNumber is concatenated directly into SQL query
         public async Task UpdatePhoneNumberAsync(int userId, string phoneNumber)
         {
-            // VULNERABLE: Direct string concatenation allows SQL injection
-            // When phoneNumber contains single quote ('), SQL syntax error will occur
             var sql = $"UPDATE Users SET PhoneNumber = '{phoneNumber}' WHERE Id = {userId}";
             try
             {
@@ -120,7 +117,6 @@ namespace ExamManagement.Services
             }
             catch (Microsoft.Data.SqlClient.SqlException sqlEx)
             {
-                // Re-throw SQL exception with full details to expose SQL injection vulnerability
                 throw new Exception($"SQL Error: {sqlEx.Message} | SQL Query: {sql}", sqlEx);
             }
             catch (Exception ex)

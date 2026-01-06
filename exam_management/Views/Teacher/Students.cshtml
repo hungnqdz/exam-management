@@ -10,28 +10,15 @@
 {
     <div class="alert alert-info">
         <strong>Search results for:</strong> @Html.Raw(searchDisplay)
-        <!-- VULNERABILITY: Reflected XSS - Using Html.Raw() without encoding allows script injection -->
-        <!-- Test payloads: 
-             <script>alert('XSS')</script>
-             <img src=x onerror=alert('XSS')>
-             "><script>alert('XSS')</script>
-             <svg/onload=alert('XSS')>
-        -->
     </div>
-    <!-- Additional XSS reflection point in HTML comment context -->
-    <!-- Search term: @Html.Raw(searchDisplay) -->
 }
 
 <div class="row mb-3">
     <div class="col-md-6">
         <form method="get" class="d-flex">
-            <!-- VULNERABILITY: Reflected XSS - Search value is reflected in input without encoding -->
-            <!-- This allows XSS payloads in the value attribute: "><script>alert('XSS')</script> -->
-            <!-- Additional payloads for attribute context: " onmouseover="alert('XSS')" x=" -->
             <input type="text" name="search" class="form-control me-2" placeholder="Search students..." value="@Html.Raw(searchValue)" data-val="false">
             <button type="submit" class="btn btn-outline-primary">Search</button>
         </form>
-        <!-- Additional reflection in title attribute for testing -->
         @if (!string.IsNullOrEmpty(searchValue))
         {
             <small class="text-muted" title="@Html.Raw(searchValue)">Showing results</small>

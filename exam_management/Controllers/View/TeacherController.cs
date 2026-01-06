@@ -9,7 +9,7 @@ using System.Security.Claims;
 
 namespace ExamManagement.Controllers.View
 {
-    [Authorize] // VULNERABILITY: Changed from [Authorize(Roles = "Teacher")] to allow any authenticated user
+    [Authorize]
     [Route("Teacher")]
     public class TeacherController : Controller
     {
@@ -34,15 +34,11 @@ namespace ExamManagement.Controllers.View
             var myStudents = await _userService.GetStudentsByTeacherClassAsync(GetUserId());
             if (!string.IsNullOrEmpty(search))
             {
-                // VULNERABILITY: No sanitization - search input is directly used
                 // Case-insensitive search
                 var searchLower = search.ToLower();
                 myStudents = myStudents.Where(s => s.Username.ToLower().Contains(searchLower) || s.FullName.ToLower().Contains(searchLower)).ToList();
             }
-            // VULNERABILITY: Reflected XSS - Search term is passed directly to view without HTML encoding
-            // This allows attackers to inject malicious JavaScript that will execute in the victim's browser
-            // Example payload: <script>alert('XSS')</script>
-            // Or: <img src=x onerror=alert('XSS')>
+            
             ViewBag.Search = search;
             
             // Load subjects for Create Modal
@@ -83,10 +79,6 @@ namespace ExamManagement.Controllers.View
                 ModelState.AddModelError("Username", "Username is already taken.");
             }
 
-            // VULNERABILITY: Parameter Manipulation
-            // Removed validation that checks if teacher teaches the subject
-            // Only validates that subject exists in the system, not that teacher teaches it
-            // This allows teacher to create students for subjects they don't teach
             var teacherId = GetUserId();
             var teacher = await _userService.GetUserByIdAsync(teacherId);
             
@@ -101,7 +93,6 @@ namespace ExamManagement.Controllers.View
                 {
                     ModelState.AddModelError("SubjectIds", $"Invalid subject IDs: {string.Join(", ", invalidSubjectIds)}. These subjects do not exist in the system.");
                 }
-                // No check for whether teacher actually teaches these subjects - VULNERABILITY
             }
             
             if (ModelState.IsValid)
@@ -140,18 +131,11 @@ namespace ExamManagement.Controllers.View
             return View("Students", myStudents);
         }
 
-        // VULNERABILITY: IDOR (Insecure Direct Object Reference)
-        // Removed validation that checks if student belongs to teacher's classes
-        // This allows teacher to edit students from other subjects they don't teach
         [HttpPost("Students/Edit/{id}")]
         [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> EditStudent(int id, User model)
         {
              var teacherId = GetUserId();
-             
-             // VULNERABILITY: No authorization check - removed validation that verifies student belongs to teacher's classes
-             // Previously checked: if (!myStudents.Any(s => s.Id == id)) return Forbid(...);
-             // Now any teacher can edit any student by manipulating the id parameter in the URL
              
              // Basic edit for teacher: Name, Phone, Address
              var user = await _userService.GetUserByIdAsync(id);
@@ -207,9 +191,6 @@ namespace ExamManagement.Controllers.View
              return RedirectToAction("Students");
         }
 
-        // VULNERABILITY: CSRF - GET endpoint without CSRF protection
-        // Attacker can create a malicious link: /Teacher/Students/Delete/{id}
-        // When user clicks the link, student will be deleted without CSRF token validation
         [HttpGet("Students/Delete/{id}")]
         [Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryToken]
         public async Task<IActionResult> DeleteStudentGet(int id)
@@ -295,22 +276,14 @@ namespace ExamManagement.Controllers.View
             }
         }
 
-        // VULNERABILITY: SQL Injection in id parameter
-        // Accepting string id instead of int to allow SQL injection payloads
         [HttpGet("Exams/Detail/{id}")]
         public async Task<IActionResult> ExamDetail(string id)
         {
-            // VULNERABILITY: Directly using string id in SQL query without validation
-            // Convert string to int, but if conversion fails or contains SQL, it will be vulnerable
             if (!int.TryParse(id, out int examId))
             {
-                // Still pass the string to service - vulnerable to SQL injection
-                // This allows SQL injection even if id is not a valid integer
-                examId = 0; // Default value, but we'll use the raw string in SQL
+                examId = 0; 
             }
             
-            // Use the raw string id in SQL query - vulnerable to SQL injection
-            // Call method that accepts string directly to bypass int validation
             var examService = _examService as ExamService;
             var exam = examService != null 
                 ? await examService.GetExamByIdAsyncString(id)
@@ -335,20 +308,13 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpPost("Exams/Grade")]
-        [IgnoreAntiforgeryToken] // VULNERABILITY: Disable CSRF protection for training - allows direct POST requests
-        // VULNERABILITY: Missing [Authorize(Roles = "Teacher")] - allows any authenticated user to grade
-        // Class-level [Authorize] only checks authentication, not role
+        [IgnoreAntiforgeryToken] 
         public async Task<IActionResult> Grade(int submissionId, double score, int examId)
         {
-            // VULNERABILITY: Missing role authorization check - any authenticated user can grade
-            // Original security check removed for training demonstration
             var userId = GetUserId();
             var exam = await _examService.GetExamByIdAsync(examId);
             if (exam == null) return NotFound();
             
-            // VULNERABILITY: Removed check for teacher role and subject assignment
-            // This allows students to grade exams (privilege escalation vulnerability)
-            // Student chỉ cần thay access_token trong request là có thể chấm điểm
             
             // Only validate score range
             if (score < 0 || score > 10)
@@ -357,7 +323,6 @@ namespace ExamManagement.Controllers.View
                 return RedirectToAction("ExamDetail", new { id = examId });
             }
             
-            // VULNERABILITY: Any authenticated user (including students) can now grade submissions
             await _examService.GradeSubmissionAsync(submissionId, score, userId);
             return RedirectToAction("ExamDetail", new { id = examId });
         }

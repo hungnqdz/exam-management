@@ -27,7 +27,6 @@ namespace ExamManagement.Controllers.Api
 
         /// <summary>
         /// API 29. POST /Student/SubmitExam
-        /// VULNERABLE: Insecure Deserialization endpoint
         /// Accepts file uploads and deserializes binary files without proper validation
         /// </summary>
         [HttpPost("SubmitExam")]
@@ -62,7 +61,6 @@ namespace ExamManagement.Controllers.Api
                 return BadRequest(new { error = "File size exceeds the maximum limit of 10MB." });
             }
 
-            // VULNERABLE: Allow PDF and binary files for deserialization
             var extension = Path.GetExtension(file.FileName).ToLower();
             var allowedExtensions = new[] { ".pdf", ".bin", ".dat", ".soap" };
             if (!allowedExtensions.Contains(extension))
@@ -70,7 +68,6 @@ namespace ExamManagement.Controllers.Api
                 return BadRequest(new { error = "Only PDF, BIN, DAT, or SOAP files are allowed." });
             }
 
-            // VULNERABLE: Allow multiple MIME types
             var allowedMimeTypes = new[] { "application/pdf", "application/octet-stream", "application/soap+xml", "application/x-binary" };
             if (!allowedMimeTypes.Contains(file.ContentType.ToLower()) && !file.ContentType.StartsWith("application/"))
             {
@@ -95,17 +92,10 @@ namespace ExamManagement.Controllers.Api
                 return BadRequest(new { error = "Invalid file path." });
             }
 
-            // VULNERABLE: Insecure Deserialization - If file is not PDF, try to deserialize it
-            // CRITICAL VULNERABILITY: This is where the exploit happens
-            // ysoserial.exe -f BinaryFormatter -g PSObject -o raw -> payload.bin -c "calc" -t
-            // When this payload is uploaded, it will be deserialized and execute the command
             if (extension != ".pdf")
             {
                 try
                 {
-                    // CRITICAL VULNERABILITY: Insecure Deserialization
-                    // An attacker can craft a malicious serialized object that executes arbitrary code
-                    // during deserialization (Remote Code Execution - RCE)
                     
                     // Read the file content into a byte array first to ensure we have the full stream
                     byte[] fileBytes;
@@ -118,10 +108,6 @@ namespace ExamManagement.Controllers.Api
                     object? deserializedObject = null;
                     bool deserializationSuccess = false;
 
-                    // CRITICAL: Try BinaryFormatter first - MOST DANGEROUS
-                    // BinaryFormatter can deserialize ANY type and execute code
-                    // This is the classic Insecure Deserialization vulnerability in C#
-                    // Works with ysoserial payloads: -f BinaryFormatter -g PSObject -o raw
                     try
                     {
                         using (var memoryStream = new MemoryStream(fileBytes))
@@ -129,20 +115,6 @@ namespace ExamManagement.Controllers.Api
                             memoryStream.Position = 0;
 #pragma warning disable SYSLIB0011 // BinaryFormatter is obsolete
                             var binaryFormatter = new BinaryFormatter();
-                            // CRITICAL VULNERABILITY: No type checking, no validation
-                            // BinaryFormatter will deserialize ANY type specified in the binary data
-                            // An attacker can serialize a malicious object that executes code in:
-                            // - Constructor (called during deserialization)
-                            // - Property setters (called when properties are set)
-                            // - OnDeserialization callbacks (IDeserializationCallback interface)
-                            // - ISerializable.GetObjectData (custom serialization)
-                            // 
-                            // ysoserial.exe -f BinaryFormatter -g PSObject generates payloads that
-                            // exploit PowerShell's PSObject deserialization to execute arbitrary commands
-                            // The command execution happens DURING deserialization, not after
-                            // 
-                            // Example: ysoserial.exe -f BinaryFormatter -g PSObject -o raw -c "calc" -t > payload.bin
-                            // Uploading this payload.bin file will execute "calc" automatically
                             deserializedObject = binaryFormatter.Deserialize(memoryStream);
 #pragma warning restore SYSLIB0011
                             deserializationSuccess = true;
@@ -151,16 +123,12 @@ namespace ExamManagement.Controllers.Api
                     catch (Exception bfEx)
                     {
                         // If BinaryFormatter fails, try DataContractSerializer
-                        // VULNERABLE: DataContractSerializer can also be exploited
                         try
                         {
                             using (var memoryStream = new MemoryStream(fileBytes))
                             {
                                 memoryStream.Position = 0;
                                 var serializer = new DataContractSerializer(typeof(SubmissionMetadata));
-                                // DANGEROUS: DataContractSerializer can deserialize types
-                                // This allows attackers to craft malicious SubmissionMetadata objects
-                                // that execute code in OnDeserialization callback
                                 deserializedObject = serializer.ReadObject(memoryStream);
                                 deserializationSuccess = true;
                             }
@@ -181,20 +149,13 @@ namespace ExamManagement.Controllers.Api
                             }
                             catch (Exception xmlEx)
                             {
-                                // Log but don't fail the request - makes vulnerability harder to detect
                                 System.Diagnostics.Debug.WriteLine($"All deserialization attempts failed. BinaryFormatter: {bfEx.Message}, XML: {xmlEx.Message}");
                             }
                         }
                     }
                     
-                    // Process the deserialized object
-                    // CRITICAL: The deserialization process itself executes code
-                    // Even if we don't use the object, the damage is already done
-                    // For ysoserial PSObject payloads, code execution happens during deserialization
                     if (deserializedObject != null)
                     {
-                        // The deserialization process has already executed any malicious code
-                        // This is why Insecure Deserialization is so dangerous - code runs automatically
                         System.Diagnostics.Debug.WriteLine($"Deserialized object type: {deserializedObject.GetType().FullName}");
                         
                         if (deserializedObject is SubmissionMetadata metadata)
@@ -205,10 +166,6 @@ namespace ExamManagement.Controllers.Api
                 }
                 catch (Exception ex)
                 {
-                    // Silently continue even if deserialization fails
-                    // This makes the vulnerability harder to detect
-                    // Note: Even if an exception is thrown, code may have already executed
-                    // Some payloads execute code before throwing exceptions
                     System.Diagnostics.Debug.WriteLine($"Deserialization error: {ex.Message}");
                     System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
                 }
@@ -232,4 +189,3 @@ namespace ExamManagement.Controllers.Api
         }
     }
 }
-

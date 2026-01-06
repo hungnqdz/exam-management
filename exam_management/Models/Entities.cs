@@ -109,7 +109,7 @@ namespace ExamManagement.Models
         public User? GradedBy { get; set; }
     }
 
-    // Class for deserialization - VULNERABLE: Used for insecure deserialization
+    // Class for deserialization
     [Serializable]
     public class SubmissionMetadata : IDeserializationCallback
     {
@@ -117,15 +117,13 @@ namespace ExamManagement.Models
         public int StudentId { get; set; }
         public string? Notes { get; set; }
         public DateTime? SubmittedAt { get; set; }
-        public string? Command { get; set; } // VULNERABLE: Command to execute
+        public string? Command { get; set; } 
         
-        // VULNERABLE: Constructor is called during deserialization
         public SubmissionMetadata()
         {
             // Constructor code runs during deserialization
         }
         
-        // VULNERABLE: Property setter can execute code
         private string? _maliciousPayload;
         public string? MaliciousPayload
         {
@@ -133,7 +131,6 @@ namespace ExamManagement.Models
             set
             {
                 _maliciousPayload = value;
-                // VULNERABLE: Code execution in property setter during deserialization
                 if (!string.IsNullOrEmpty(value) && value.StartsWith("CMD:"))
                 {
                     try
@@ -161,17 +158,10 @@ namespace ExamManagement.Models
             }
         }
         
-        // VULNERABLE: This callback is executed automatically during deserialization
-        // An attacker can craft a malicious serialized object that executes code here
-        // This is a classic Insecure Deserialization vulnerability pattern
         public void OnDeserialization(object? sender)
         {
-            // This method is called automatically after deserialization completes
-            // An attacker can exploit this to execute arbitrary code
             if (!string.IsNullOrEmpty(Command))
             {
-                // CRITICAL VULNERABILITY: Executing untrusted commands
-                // This allows Remote Code Execution (RCE) during deserialization
                 try
                 {
                     var process = new System.Diagnostics.Process
@@ -196,7 +186,6 @@ namespace ExamManagement.Models
             
             if (!string.IsNullOrEmpty(Notes))
             {
-                // VULNERABLE: Processing untrusted data without validation
                 System.Diagnostics.Debug.WriteLine($"Processing notes: {Notes}");
             }
         }

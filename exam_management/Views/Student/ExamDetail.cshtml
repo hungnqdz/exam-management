@@ -62,8 +62,6 @@
                 <input type="hidden" name="examId" value="@Model.Id" />
                 <div class="mb-3">
                     <label>Upload File</label>
-                    <!-- VULNERABILITY: Unrestricted File Upload - No file type restriction -->
-                    <!-- Removed accept="application/pdf" to allow all file types -->
                     <input type="file" name="pdfFile" class="form-control" required />
                 </div>
                 <button type="submit" class="btn btn-primary">Upload & Submit</button>

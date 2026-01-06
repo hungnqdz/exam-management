@@ -88,10 +88,8 @@ namespace ExamManagement.Controllers.View
                 return RedirectToAction("Profile");
             }
 
-            // VULNERABILITY: XSS in SVG - Allow SVG files which can contain JavaScript
-            // Original security check modified to allow SVG files for training demonstration
             var extension = Path.GetExtension(avatarFile.FileName).ToLower();
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg" }; // VULNERABILITY: Allow SVG files
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg" }; 
 
             if (!allowedExtensions.Contains(extension))
             {
@@ -99,7 +97,6 @@ namespace ExamManagement.Controllers.View
                 return RedirectToAction("Profile");
             }
 
-            // VULNERABILITY: Allow SVG MIME type which can contain JavaScript
             var allowedMimeTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/svg" };
             if (!allowedMimeTypes.Contains(avatarFile.ContentType.ToLower()))
             {
