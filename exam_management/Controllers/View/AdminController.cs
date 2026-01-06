@@ -116,6 +116,12 @@ namespace ExamManagement.Controllers.View
             {
                 ModelState.AddModelError("Role", "Không thể tạo người dùng Admin.");
             }
+            
+            // Validate SubjectIds is required
+            if (model != null && (model.SubjectIds == null || !model.SubjectIds.Any()))
+            {
+                ModelState.AddModelError("SubjectIds", "Vui lòng chọn ít nhất một bộ môn.");
+            }
 
             if (ModelState.IsValid)
             {
@@ -124,7 +130,7 @@ namespace ExamManagement.Controllers.View
                     await _userService.CreateUserAsync(user, model.Password, model.SubjectIds);
                     TempData["Message"] = $"Đã tạo người dùng '{model.Username}' thành công.";
                     return RedirectToAction("Index");
-                } catch(Exception ex) {
+                } catch(Exception) {
                     ModelState.AddModelError("", $"Lỗi khi tạo người dùng");
                 }
             }
@@ -173,6 +179,7 @@ namespace ExamManagement.Controllers.View
             if (string.IsNullOrWhiteSpace(user.FullName))
             {
                 ModelState.AddModelError("", "Full name is required.");
+                ViewBag.ShowEditMode = true; // Show edit mode to display errors
                 return View("Detail", user);
             } 
             
@@ -183,8 +190,9 @@ namespace ExamManagement.Controllers.View
                 user.PhoneNumber = phoneNumber;
                 await _userService.UpdateUserAsync(user);
                 return RedirectToAction("Index");
-            } catch (Exception ex) {
+            } catch (Exception) {
                 ModelState.AddModelError("", "Lỗi khi cập nhật người dùng");
+                ViewBag.ShowEditMode = true; // Show edit mode to display errors
                 return View("Detail", user);
             }
         }
