@@ -187,7 +187,7 @@ namespace ExamManagement.Controllers.View
             }
         }
 
-        [HttpPost("Delete/{id}")]
+        [HttpGet("Delete/{id}")]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
@@ -202,7 +202,13 @@ namespace ExamManagement.Controllers.View
                     tokenValue = Request.Headers["X-CSRF-TOKEN"].FirstOrDefault();
                 }
                 
-                // If not in header, try form (safely)
+                // If not in header, try query string (for GET)
+                if (string.IsNullOrWhiteSpace(tokenValue))
+                {
+                    tokenValue = Request.Query["__RequestVerificationToken"].FirstOrDefault();
+                }
+
+                // If not in query, try form (for completeness)
                 if (string.IsNullOrWhiteSpace(tokenValue))
                 {
                     try

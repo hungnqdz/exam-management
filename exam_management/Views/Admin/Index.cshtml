@@ -50,7 +50,8 @@
                     
                     @if (user.Role != UserRole.Admin)
                     {
-                        <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn?');">
+                        <form asp-action="Delete" asp-route-id="@user.Id" method="get" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn?');">
+                            @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
                         </form>
                     }

@@ -72,8 +72,9 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpGet("Register")]
-        public IActionResult Register()
+        public IActionResult Register(string? returnUrl = null)
         {
+            ViewBag.ReturnUrl = returnUrl;
             // Pass subjects for checkboxes
             ViewBag.Subjects = new List<Subject> 
             { 
@@ -87,12 +88,13 @@ namespace ExamManagement.Controllers.View
         }
 
         [HttpPost("Register")]
-        public async Task<IActionResult> Register(RegisterVm model)
+        public async Task<IActionResult> Register(RegisterVm model, string? returnUrl = null)
         {
             // Security: Input validation
             if (model == null)
             {
                 ModelState.AddModelError("", "All fields are required.");
+                ViewBag.ReturnUrl = returnUrl;
                 ViewBag.Subjects = new List<Subject> 
                 { 
                     new Subject{Id=1, Name="Math"}, 
@@ -113,6 +115,7 @@ namespace ExamManagement.Controllers.View
             if (string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.FullName) || string.IsNullOrWhiteSpace(model.Password))
             {
                 ModelState.AddModelError("", "All fields are required.");
+                ViewBag.ReturnUrl = returnUrl;
                 ViewBag.Subjects = new List<Subject> 
                 { 
                     new Subject{Id=1, Name="Math"}, 
@@ -128,6 +131,7 @@ namespace ExamManagement.Controllers.View
             if (model.Password.Length < 6)
             {
                 ModelState.AddModelError("", "Password must be at least 6 characters long.");
+                ViewBag.ReturnUrl = returnUrl;
                 ViewBag.Subjects = new List<Subject> 
                 { 
                     new Subject{Id=1, Name="Math"}, 
@@ -143,6 +147,7 @@ namespace ExamManagement.Controllers.View
             if (model.Username.Length > 50)
             {
                 ModelState.AddModelError("", "Username must be 50 characters or less.");
+                ViewBag.ReturnUrl = returnUrl;
                 ViewBag.Subjects = new List<Subject> 
                 { 
                     new Subject{Id=1, Name="Math"}, 
@@ -157,11 +162,18 @@ namespace ExamManagement.Controllers.View
             try
             {
                 await _authService.RegisterStudentAsync(model.Username, model.Password, model.FullName, model.Gender, model.SubjectIds ?? new List<int>(), model.Role);
+                
+                if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    return Redirect(returnUrl);
+                }
+
                 return RedirectToAction("Login");
             }
             catch (Exception ex)
             {
                 ModelState.AddModelError("", ex.Message);
+                ViewBag.ReturnUrl = returnUrl;
                 // Reload subjects
                 ViewBag.Subjects = new List<Subject> 
                 { 
