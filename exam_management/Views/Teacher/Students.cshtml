@@ -1,6 +1,18 @@
 @model List<ExamManagement.Models.User>
+@{
+    var editData = ViewBag.EditStudentData as dynamic;
+}
 
 <h2>Student Management (My Classes)</h2>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success">@TempData["Message"]</div>
+}
 
 @{
     var searchDisplay = ViewBag.Search as string ?? "";
@@ -10,28 +22,15 @@
 {
     <div class="alert alert-info">
         <strong>Search results for:</strong> @Html.Raw(searchDisplay)
-        <!-- VULNERABILITY: Reflected XSS - Using Html.Raw() without encoding allows script injection -->
-        <!-- Test payloads: 
-             <script>alert('XSS')</script>
-             <img src=x onerror=alert('XSS')>
-             "><script>alert('XSS')</script>
-             <svg/onload=alert('XSS')>
-        -->
     </div>
-    <!-- Additional XSS reflection point in HTML comment context -->
-    <!-- Search term: @Html.Raw(searchDisplay) -->
 }
 
 <div class="row mb-3">
     <div class="col-md-6">
         <form method="get" class="d-flex">
-            <!-- VULNERABILITY: Reflected XSS - Search value is reflected in input without encoding -->
-            <!-- This allows XSS payloads in the value attribute: "><script>alert('XSS')</script> -->
-            <!-- Additional payloads for attribute context: " onmouseover="alert('XSS')" x=" -->
             <input type="text" name="search" class="form-control me-2" placeholder="Search students..." value="@Html.Raw(searchValue)" data-val="false">
             <button type="submit" class="btn btn-outline-primary">Search</button>
         </form>
-        <!-- Additional reflection in title attribute for testing -->
         @if (!string.IsNullOrEmpty(searchValue))
         {
             <small class="text-muted" title="@Html.Raw(searchValue)">Showing results</small>
@@ -98,15 +97,15 @@
                     <div asp-validation-summary="All" class="text-danger"></div>
                     <div class="mb-3">
                         <label class="form-label">Username</label>
-                        <input name="Username" class="form-control" required />
+                        <input name="Username" id="create_Username" class="form-control" value="@(ViewBag.CreateStudentModel?.Username ?? "")" required />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <input name="Password" type="password" class="form-control" required />
+                        <input name="Password" id="create_Password" type="password" class="form-control" required />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Full Name</label>
-                        <input name="FullName" class="form-control" required />
+                        <input name="FullName" id="create_FullName" class="form-control" value="@(ViewBag.CreateStudentModel?.FullName ?? "")" required />
                     </div>
 
                     <div class="mb-3">
@@ -115,10 +114,12 @@
                             @if(ViewBag.Subjects != null) {
                                 var subjects = ViewBag.Subjects as List<ExamManagement.Models.Subject>;
                                 var autoCheck = subjects != null && subjects.Count == 1;
+                                var selectedSubjectIds = ViewBag.CreateStudentModel?.SubjectIds as List<int> ?? new List<int>();
                                 foreach (var sub in subjects)
                                 {
+                                    var isChecked = selectedSubjectIds.Contains(sub.Id) || (autoCheck && selectedSubjectIds.Count == 0);
                                     <div class="form-check me-3">
-                                        <input class="form-check-input" type="checkbox" name="SubjectIds" value="@sub.Id" id="sub_@sub.Id" @(autoCheck ? "checked" : "")>
+                                        <input class="form-check-input" type="checkbox" name="SubjectIds" value="@sub.Id" id="sub_@sub.Id" @(isChecked ? "checked" : "")>
                                         <label class="form-check-label" for="sub_@sub.Id">@sub.Name</label>
                                     </div>
                                 }
@@ -145,21 +146,22 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div asp-validation-summary="All" class="text-danger"></div>
                     <div class="mb-3">
                         <label class="form-label">Username</label>
                         <input name="Username" id="edit_Username" class="form-control" disabled />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Full Name</label>
-                        <input name="FullName" id="edit_FullName" class="form-control" />
+                        <input name="FullName" id="edit_FullName" class="form-control" value="@(editData?.FullName ?? "")" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
-                        <input name="PhoneNumber" id="edit_PhoneNumber" class="form-control" />
+                        <input name="PhoneNumber" id="edit_PhoneNumber" class="form-control" value="@(editData?.PhoneNumber ?? "")" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Address</label>
-                        <input name="Address" id="edit_Address" class="form-control" />
+                        <input name="Address" id="edit_Address" class="form-control" value="@(editData?.Address ?? "")" />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -192,5 +194,33 @@
         // Open Modal
         var myModal = new bootstrap.Modal(document.getElementById('editStudentModal'));
         myModal.show();
+    }
+
+    // Auto-open create modal if there are validation errors
+    @if (ViewBag.ShowCreateModal == true)
+    {
+        <text>
+        document.addEventListener('DOMContentLoaded', function() {
+            var createModal = new bootstrap.Modal(document.getElementById('createStudentModal'));
+            createModal.show();
+        });
+        </text>
+    }
+
+    // Auto-open edit modal if there are validation errors
+    @if (ViewBag.ShowEditModal == true && ViewBag.EditStudentId != null)
+    {
+        <text>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set form action
+            var form = document.getElementById('editStudentForm');
+            form.action = '/Teacher/Students/Edit/@ViewBag.EditStudentId';
+            
+            // Values are already set in the input fields via ViewBag.EditStudentData
+            // Open Modal
+            var editModal = new bootstrap.Modal(document.getElementById('editStudentModal'));
+            editModal.show();
+        });
+        </text>
     }
 </script>

@@ -45,14 +45,10 @@ namespace ExamManagement.Controllers.View
             return value;
         }
 
-        // VULNERABILITY: Vertical Privilege Escalation - Bug allows Students to access Admin-only user list
-        // But Teachers are blocked (inconsistent authorization logic)
-        [AllowAnonymous] // Override class-level [Authorize(Roles = "Admin")] - allows any user (even unauthenticated)
+        [AllowAnonymous] 
         [HttpGet("")]
         public async Task<IActionResult> Index(string search)
         {
-            // VULNERABILITY: Inconsistent authorization - Students can access but Teachers cannot
-            // This is a vertical privilege escalation bug
             // Check if user is authenticated
             if (!User.Identity?.IsAuthenticated ?? true)
             {
@@ -84,8 +80,7 @@ namespace ExamManagement.Controllers.View
             return View(users);
         }
 
-        // VULNERABILITY: CSRF - No anti-forgery token validation
-        [HttpPost("Create")]
+        [HttpGet("Create")]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> Create(CreateUserVm model)
         {
@@ -117,10 +112,15 @@ namespace ExamManagement.Controllers.View
                 }
             }
             
-            // Requirement: Cannot create Admin users
             if (model != null && model.Role == UserRole.Admin)
             {
                 ModelState.AddModelError("Role", "Không thể tạo người dùng Admin.");
+            }
+            
+            // Validate SubjectIds is required
+            if (model != null && (model.SubjectIds == null || !model.SubjectIds.Any()))
+            {
+                ModelState.AddModelError("SubjectIds", "Vui lòng chọn ít nhất một bộ môn.");
             }
 
             if (ModelState.IsValid)
@@ -130,11 +130,13 @@ namespace ExamManagement.Controllers.View
                     await _userService.CreateUserAsync(user, model.Password, model.SubjectIds);
                     TempData["Message"] = $"Đã tạo người dùng '{model.Username}' thành công.";
                     return RedirectToAction("Index");
-                } catch(Exception ex) {
-                    ModelState.AddModelError("", $"Lỗi khi tạo người dùng: {ex.Message}");
+                } catch(Exception) {
+                    ModelState.AddModelError("", $"Lỗi khi tạo người dùng");
                 }
             }
             ViewBag.Subjects = await _userService.GetAllSubjectsAsync();
+            ViewBag.ShowCreateModal = true; // Flag to reopen modal
+            ViewBag.CreateUserModel = model; // Preserve form data
             // Reload data for Index view
             var users = await _userService.GetAllUsersAsync();
             return View("Index", users);
@@ -146,7 +148,6 @@ namespace ExamManagement.Controllers.View
             var user = await _userService.GetUserByIdAsync(id);
             if (user == null) return NotFound();
 
-            // Requirement: Admin cannot downgrade their own role
             if (id == GetUserId() && model.Role != user.Role)
             {
                 // Ignore the role change or return error. 
@@ -165,8 +166,6 @@ namespace ExamManagement.Controllers.View
             // Security: Input validation and sanitization
             user.FullName = (model.FullName ?? string.Empty).Trim();
             
-            // VULNERABILITY: Get PhoneNumber directly from Request to avoid HTML encoding
-            // This allows SQL injection payloads to pass through without encoding
             var phoneNumber = Request.Form["PhoneNumber"].ToString().Trim();
             if (string.IsNullOrEmpty(phoneNumber))
             {
@@ -180,85 +179,29 @@ namespace ExamManagement.Controllers.View
             if (string.IsNullOrWhiteSpace(user.FullName))
             {
                 ModelState.AddModelError("", "Full name is required.");
+                ViewBag.ShowEditMode = true; // Show edit mode to display errors
                 return View("Detail", user);
             } 
             
             try {
-                // VULNERABILITY: SQL Injection - PhoneNumber is passed to vulnerable method
                 await _userService.UpdatePhoneNumberAsync(id, phoneNumber);
                 
                 // Update other fields normally
                 user.PhoneNumber = phoneNumber;
                 await _userService.UpdateUserAsync(user);
                 return RedirectToAction("Index");
-            } catch (Exception ex) {
-                // VULNERABILITY: Expose SQL error details for SQL injection exploitation
-                // Return 500 status code with detailed SQL error information
-                var errorMessage = ex.Message;
-                var sqlQuery = "";
-                
-                // Extract SQL query from error message
-                if (ex.Message.Contains("SQL Query:"))
-                {
-                    var startIdx = ex.Message.IndexOf("SQL Query:") + "SQL Query: ".Length;
-                    sqlQuery = ex.Message.Substring(startIdx);
-                }
-                
-                // Extract SQL Server specific error details
-                var sqlServerError = "";
-                if (ex.InnerException != null)
-                {
-                    sqlServerError = ex.InnerException.Message;
-                }
-                
-                // Check if this is a SQL syntax error (SQL Injection indicator)
-                var isSqlError = ex.InnerException is Microsoft.Data.SqlClient.SqlException ||
-                                sqlServerError.Contains("syntax") ||
-                                sqlServerError.Contains("quoted") ||
-                                sqlServerError.Contains("Incorrect") ||
-                                sqlServerError.Contains("Unclosed");
-                
-                if (isSqlError)
-                {
-                    // Return 500 with detailed SQL error information
-                    Response.StatusCode = 500;
-                    
-                    var detailedError = $@"
-<h1 style='color: red;'>⚠️ SQL INJECTION DETECTED!</h1>
-<h2>HTTP 500 - Internal Server Error</h2>
-<h3>SQL Syntax Error Detected:</h3>
-<p><strong>SQL Server Error:</strong> {sqlServerError}</p>
-<p><strong>Full Error Message:</strong> {errorMessage}</p>
-{(string.IsNullOrEmpty(sqlQuery) ? "" : $@"
-<h3>Executed SQL Query:</h3>
-<pre style='background: #f4f4f4; padding: 10px; border: 1px solid #ccc;'>{sqlQuery}</pre>
-")}
-<h3>⚠️ This indicates a SQL Injection vulnerability in the PhoneNumber parameter!</h3>
-<p>The single quote (') character in PhoneNumber caused a SQL syntax error, exposing the vulnerability.</p>
-";
-                    
-                    return Content(detailedError, "text/html");
-                }
-                
-                // For other errors, still return 500 but with less detail
-                Response.StatusCode = 500;
-                return Content($"<h1>500 - Database Error</h1><p>{errorMessage}</p>", "text/html");
+            } catch (Exception) {
+                ModelState.AddModelError("", "Lỗi khi cập nhật người dùng");
+                ViewBag.ShowEditMode = true; // Show edit mode to display errors
+                return View("Detail", user);
             }
         }
 
-        // VULNERABILITY: CSRF - Token validation only checks if token exists, not if it matches session
-        // Any CSRF token can be used as long as it exists (doesn't validate against session)
-        [HttpPost("Delete/{id}")]
-        [IgnoreAntiforgeryToken] // Bypass automatic validation to implement custom (vulnerable) check
+        [HttpGet("Delete/{id}")]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
-            // Clear any ModelState errors that might be caused by invalid CSRF token
             ModelState.Clear();
-            
-            // VULNERABILITY: Only check if token exists, don't validate it matches the session
-            // This allows any CSRF token to be used as long as it's present (even invalid/random values)
-            
-            // Safely read token from header or form - accept ANY value
             string? tokenValue = null;
             
             try
@@ -269,7 +212,13 @@ namespace ExamManagement.Controllers.View
                     tokenValue = Request.Headers["X-CSRF-TOKEN"].FirstOrDefault();
                 }
                 
-                // If not in header, try form (safely)
+                // If not in header, try query string (for GET)
+                if (string.IsNullOrWhiteSpace(tokenValue))
+                {
+                    tokenValue = Request.Query["__RequestVerificationToken"].FirstOrDefault();
+                }
+
+                // If not in query, try form (for completeness)
                 if (string.IsNullOrWhiteSpace(tokenValue))
                 {
                     try
@@ -281,26 +230,18 @@ namespace ExamManagement.Controllers.View
                     }
                     catch
                     {
-                        // Ignore form reading errors - token might not be in form
                     }
                 }
             }
             catch
             {
-                // Ignore any errors when reading token - we'll just check if it exists
             }
-            
-            // Check if any token exists (accept ANY value, even invalid/random tokens)
-            // BUG: We only check existence, not validation - any random string will work
-            // Even "abc123" or "invalid_token" will be accepted as long as the field is present
+
             if (string.IsNullOrWhiteSpace(tokenValue))
             {
                 return BadRequest("CSRF token is required.");
             }
-            
-            // BUG: Token exists but we don't validate it matches the session
-            // This allows attackers to use any CSRF token from any session, or even random values
-            // As long as the token field is present with any value, the request is accepted
+
             
             if (id == GetUserId())
             {
@@ -318,8 +259,7 @@ namespace ExamManagement.Controllers.View
             return View(user);
         }
 
-        // VULNERABILITY: CSRF - No anti-forgery token validation
-        [HttpPost("Export")]
+        [HttpGet("Export")]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> Export()
         {
@@ -336,21 +276,17 @@ namespace ExamManagement.Controllers.View
             }
 
             var fileName = $"users_{DateTime.UtcNow.Ticks}.csv";
-            
+
             // Save to Storage/Exports (Secure)
             var storagePath = Path.Combine(_env.ContentRootPath, "Storage", "Exports");
-            
+
             if (!Directory.Exists(storagePath)) Directory.CreateDirectory(storagePath);
-            
+
             var filePath = Path.Combine(storagePath, fileName);
             await System.IO.File.WriteAllTextAsync(filePath, sb.ToString(), Encoding.UTF8);
 
             // Redirect to SecureFileController
             return RedirectToAction("GetExport", "SecureFile", new { fileName = fileName });
         }
-
-        // Remove old Download action as it is replaced by SecureFileController
-
-
     }
 }

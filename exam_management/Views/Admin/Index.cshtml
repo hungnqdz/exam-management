@@ -14,8 +14,7 @@
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createUserModal">
             Tạo người dùng
         </button>
-        <!-- VULNERABILITY: CSRF - Form without anti-forgery token -->
-        <form action="/Admin/Export" method="post" class="d-inline-block ms-2">
+        <form action="/Admin/Export" method="get" class="d-inline-block ms-2">
             <button type="submit" class="btn btn-secondary">Xuất CSV</button>
         </form>
     </div>
@@ -51,7 +50,8 @@
                     
                     @if (user.Role != UserRole.Admin)
                     {
-                        <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn?');">
+                        <form asp-action="Delete" asp-route-id="@user.Id" method="get" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn?');">
+                            @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
                         </form>
                     }
@@ -65,7 +65,8 @@
 <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form asp-action="Create" method="post">
+            <form asp-action="Create" method="get">
+                 @Html.AntiForgeryToken()
                 <div class="modal-header">
                     <h5 class="modal-title" id="createUserModalLabel">Tạo người dùng</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -78,7 +79,7 @@
                     }
                     <div class="mb-3">
                         <label class="form-label">Tên đăng nhập</label>
-                        <input name="Username" class="form-control" required />
+                        <input name="Username" class="form-control" value="@(ViewBag.CreateUserModel?.Username ?? "")" required />
                         @if (ViewData.ModelState["Username"]?.Errors?.Count > 0)
                         {
                             <span class="text-danger">@ViewData.ModelState["Username"].Errors[0].ErrorMessage</span>
@@ -86,33 +87,43 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Mật khẩu</label>
-                        <input name="Password" type="password" class="form-control" required />
+                        <input name="Password" type="password" class="form-control" value="@(ViewBag.CreateUserModel?.Password ?? "")" required />
+                        @if (ViewData.ModelState["Password"]?.Errors?.Count > 0)
+                        {
+                            <span class="text-danger">@ViewData.ModelState["Password"].Errors[0].ErrorMessage</span>
+                        }
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Họ và tên</label>
-                        <input name="FullName" class="form-control" required />
+                        <input name="FullName" class="form-control" value="@(ViewBag.CreateUserModel?.FullName ?? "")" required />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Vai trò</label>
                         <select name="Role" class="form-select" id="roleSelect">
-                            <option value="Teacher">Giáo viên</option>
-                            <option value="Student">Học sinh</option>
+                            <option value="Teacher" selected="@(ViewBag.CreateUserModel != null && ViewBag.CreateUserModel.Role.ToString() == "Teacher")">Giáo viên</option>
+                            <option value="Student" selected="@(ViewBag.CreateUserModel != null && ViewBag.CreateUserModel.Role.ToString() == "Student")">Học sinh</option>
                         </select>
                     </div>
 
                     <div class="mb-3" id="subjectSection">
-                        <label class="form-label">Môn học (Cho Giáo viên/Học sinh)</label>
+                        <label class="form-label">Môn học (Cho Giáo viên/Học sinh) <span class="text-danger">*</span></label>
                         <div class="d-flex flex-wrap">
                             @if(ViewBag.Subjects != null) {
+                                var selectedSubjectIds = ViewBag.CreateUserModel?.SubjectIds as List<int> ?? new List<int>();
                                 foreach (var sub in ViewBag.Subjects as List<ExamManagement.Models.Subject>)
                                 {
+                                    var isChecked = selectedSubjectIds.Contains(sub.Id);
                                     <div class="form-check me-3">
-                                        <input class="form-check-input" type="checkbox" name="SubjectIds" value="@sub.Id" id="sub_@sub.Id">
+                                        <input class="form-check-input" type="checkbox" name="SubjectIds" value="@sub.Id" id="sub_@sub.Id" @(isChecked ? "checked" : "")>
                                         <label class="form-check-label" for="sub_@sub.Id">@sub.Name</label>
                                     </div>
                                 }
                             }
                         </div>
+                        @if (ViewData.ModelState["SubjectIds"]?.Errors?.Count > 0)
+                        {
+                            <span class="text-danger">@ViewData.ModelState["SubjectIds"].Errors[0].ErrorMessage</span>
+                        }
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -123,3 +134,16 @@
         </div>
     </div>
 </div>
+
+@* JavaScript to auto-open modal on validation errors *@
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        @if (ViewBag.ShowCreateModal == true)
+        {
+            <text>
+            var createModal = new bootstrap.Modal(document.getElementById('createUserModal'));
+            createModal.show();
+            </text>
+        }
+    });
+</script>

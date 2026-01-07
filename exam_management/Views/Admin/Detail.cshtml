@@ -38,29 +38,17 @@
 <div id="edit-mode" style="@(ViewBag.ShowEditMode == true ? "" : "display:none;")">
     <h3>Edit User</h3>
     
-    @* Display validation errors - SQL Injection errors will show here *@
+    @* Display validation errors *@
     @if (!ViewData.ModelState.IsValid)
     {
         <div class="alert alert-danger" role="alert">
-            <h5>⚠️ Errors:</h5>
+            <h5>Errors:</h5>
             <ul class="mb-0">
                 @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
                 {
                     <li>@Html.Raw(error.ErrorMessage.Replace(Environment.NewLine, "<br/>"))</li>
                 }
             </ul>
-        </div>
-    }
-    
-    @* Display PhoneNumber specific errors (SQL Injection) *@
-    @if (ViewData.ModelState["PhoneNumber"]?.Errors.Count > 0)
-    {
-        <div class="alert alert-warning border-danger" role="alert">
-            <strong>⚠️ SQL INJECTION DETECTED in PhoneNumber field!</strong>
-            @foreach (var error in ViewData.ModelState["PhoneNumber"].Errors)
-            {
-                <div class="mt-2">@Html.Raw(error.ErrorMessage.Replace(Environment.NewLine, "<br/>"))</div>
-            }
         </div>
     }
     

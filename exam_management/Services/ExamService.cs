@@ -49,19 +49,14 @@ namespace ExamManagement.Services
             return await GetExamByIdAsyncString(id.ToString());
         }
 
-        // VULNERABILITY: SQL Injection in id parameter (string overload)
-        // Using string concatenation instead of parameterized queries
-        // Public method to allow controller to pass string directly
         public async Task<Exam?> GetExamByIdAsyncString(string id)
         {
-            // Directly concatenating user input into SQL query - vulnerable to SQL injection
             var sql = $@"
                 SELECT e.*, s.Id AS Subject_Id, s.Name AS Subject_Name
                 FROM Exams e
                 INNER JOIN Subjects s ON e.SubjectId = s.Id
                 WHERE e.Id = {id}";
             
-            // Use FromSqlRaw with string interpolation - vulnerable to SQL injection
             var exams = await _context.Exams
                 .FromSqlRaw(sql)
                 .Include(e => e.Subject)
@@ -72,8 +67,6 @@ namespace ExamManagement.Services
 
         public async Task AddExamAsync(Exam exam)
         {
-            // VULNERABILITY: SQL Injection in Content parameter
-            // Using string concatenation instead of parameterized queries
             var sql = $@"
                 INSERT INTO Exams (Title, SubjectId, CreatedByUserId, Content)
                 VALUES ('{exam.Title.Replace("'", "''")}', {exam.SubjectId}, {exam.CreatedByUserId}, '{exam.Content}')";
